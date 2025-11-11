@@ -15,7 +15,7 @@ export const ImageListGrouped = ({ imageGroups, selectedImage, onImageSelect }) 
     const isExpanded = (groupId) => expandedGroups.includes(groupId);
 
     return (
-        <div className="bg-[#1a1a1a] border border-white/10 rounded-xl overflow-hidden flex flex-col h-[calc(100vh-180px)]">
+        <div className="bg-[#1a1a1a] border border-white/10 rounded-xl overflow-hidden flex flex-col h-[calc(100vh-110px)]">
             <div className="px-4 py-3 border-b border-white/10 bg-[#141414]">
                 <h3 className="text-base font-semibold text-white flex items-center gap-2">
                     <Folder className="w-4 h-4 text-teal-500" />
@@ -59,8 +59,8 @@ export const ImageListGrouped = ({ imageGroups, selectedImage, onImageSelect }) 
                                             key={image.id}
                                             onClick={() => onImageSelect(image)}
                                             className={`cursor-pointer rounded-md overflow-hidden border transition-all ${selectedImage?.id === image.id
-                                                    ? 'border-teal-500 bg-teal-500/10'
-                                                    : 'border-white/5 hover:border-teal-500/50 hover:bg-white/5'
+                                                ? 'border-teal-500 bg-teal-500/10'
+                                                : 'border-white/5 hover:border-teal-500/50 hover:bg-white/5'
                                                 }`}
                                         >
                                             <div className="flex gap-2 p-2">
