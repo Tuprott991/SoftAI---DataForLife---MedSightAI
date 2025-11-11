@@ -3,6 +3,9 @@ import { Layout } from '../components/layout';
 import { Home } from './Home';
 import { Doctor } from './Doctor';
 import { Student } from './Student';
+import { DoctorDetail } from './DoctorDetail';
+import { StudentDetail } from './StudentDetail';
+import { NotFound } from './NotFound';
 
 const router = createBrowserRouter([
     {
@@ -22,8 +25,20 @@ const router = createBrowserRouter([
                 element: <Doctor />
             },
             {
+                path: '/doctor/:id',
+                element: <DoctorDetail />
+            },
+            {
                 path: '/student',
                 element: <Student />
+            },
+            {
+                path: '/student/:id',
+                element: <StudentDetail />
+            },
+            {
+                path: '*',
+                element: <NotFound />
             }
         ]
     }
