@@ -1,11 +1,17 @@
 import { Outlet, Link, useLocation, useParams } from "react-router-dom";
 import { FloatingDirection } from "./FloatingDirection";
-import { Stethoscope, GraduationCap, Home as HomeIcon, ArrowLeft, Settings, HelpCircle, Bell, User } from "lucide-react";
+import { Stethoscope, GraduationCap, Home as HomeIcon, ArrowLeft, Settings, HelpCircle, Bell, User, PanelLeft, PanelLeftClose } from "lucide-react";
 import { patientsData } from "../../constants/patients";
+import { createContext, useContext, useState } from "react";
+
+// Create context for sidebar collapse state
+const SidebarContext = createContext();
+export const useSidebar = () => useContext(SidebarContext);
 
 export const Layout = () => {
     const location = useLocation();
     const params = useParams();
+    const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
 
     const isActive = (path) => {
         return location.pathname === path || (location.pathname === '/' && path === '/home');
@@ -32,9 +38,10 @@ export const Layout = () => {
     }
 
     return (
-        <div className="min-h-screen flex flex-col bg-[#1b1b1b]">
-            {/* Navigation Bar */}
-            <nav className="bg-[#1b1b1b] border-b border-white/10 backdrop-blur-lg sticky top-0 z-50">
+        <SidebarContext.Provider value={{ isLeftCollapsed, setIsLeftCollapsed }}>
+            <div className="min-h-screen flex flex-col bg-[#1b1b1b]">
+                {/* Navigation Bar */}
+                <nav className="bg-[#1b1b1b] border-b border-white/10 backdrop-blur-lg sticky top-0 z-50">
                 <div className="container mx-auto px-6">
                     <div className="flex items-center justify-between h-16">
                         {/* Left Side - Logo or Back Button */}
@@ -99,6 +106,21 @@ export const Layout = () => {
                             </div>
                         ) : (
                             <div className="flex items-center gap-3">
+                                {/* Toggle Sidebar Button (only on doctor/student detail pages) */}
+                                {(isDoctorDetail || isStudentDetail) && (
+                                    <button 
+                                        onClick={() => setIsLeftCollapsed(!isLeftCollapsed)}
+                                        className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                                        title={isLeftCollapsed ? "Show sidebar" : "Hide sidebar"}
+                                    >
+                                        {isLeftCollapsed ? (
+                                            <PanelLeft className="w-5 h-5" />
+                                        ) : (
+                                            <PanelLeftClose className="w-5 h-5" />
+                                        )}
+                                    </button>
+                                )}
+
                                 {/* Settings */}
                                 <button className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
                                     <Settings className="w-5 h-5" />
@@ -138,5 +160,6 @@ export const Layout = () => {
             {/* FloatingDirection - Hidden on detail pages */}
             {!isDetailPage && <FloatingDirection />}
         </div>
+        </SidebarContext.Provider>
     )
 }

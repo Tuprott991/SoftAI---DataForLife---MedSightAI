@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { MoreVertical } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { patientsData } from '../constants/patients';
 import { medicalImagesGroups, generateAnalysisData } from '../constants/medicalData';
 import {
@@ -8,19 +8,24 @@ import {
     ImageViewer
 } from '../components/DoctorDetail';
 import { AnalysisTab, RecommendationsTab } from '../components/DoctorDetail/tabs';
+import { useSidebar } from '../components/layout';
 
 export const DoctorDetail = () => {
     const { id } = useParams();
     const patient = patientsData.find(p => p.id === parseInt(id));
+    const { isLeftCollapsed } = useSidebar();
 
     // Set first image from first group as default
     const firstImage = medicalImagesGroups[0]?.images[0];
     const [selectedImage, setSelectedImage] = useState(firstImage);
-    const [activeTab, setActiveTab] = useState('analysis');
-    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [analysisData, setAnalysisData] = useState(null);
 
-    // Generate analysis data based on patient
-    const analysisData = patient ? generateAnalysisData(patient.diagnosis) : null;
+    const handleAIAnalyze = () => {
+        // TODO: Replace with actual API call
+        // For now, generate mock analysis data
+        const data = patient ? generateAnalysisData(patient.diagnosis) : null;
+        setAnalysisData(data);
+    };
 
     if (!patient) {
         return (
@@ -38,83 +43,73 @@ export const DoctorDetail = () => {
     return (
         <div className="bg-[#0a0a0a] text-white">
             <div className="container mx-auto px-6 pt-6 pb-4">
-                {/* Three Column Layout: 2:3:2 ratio */}
-                <div className="grid grid-cols-1 lg:grid-cols-7 gap-4">
+                {/* Three Column Layout: 2:3:2 ratio (responsive based on collapse) */}
+                <div className={`grid grid-cols-1 gap-4 ${
+                    isLeftCollapsed 
+                        ? 'lg:grid-cols-6' 
+                        : 'lg:grid-cols-7'
+                }`}>
 
-                    {/* Left Column - Image List (2/7) */}
-                    <div className="lg:col-span-2">
-                        <ImageListGrouped
-                            imageGroups={medicalImagesGroups}
-                            selectedImage={selectedImage}
-                            onImageSelect={setSelectedImage}
-                            patient={patient}
-                        />
-                    </div>
+                    {/* Left Column - Image List (2/7 or hidden when collapsed) */}
+                    {!isLeftCollapsed && (
+                        <div className="lg:col-span-2">
+                            <ImageListGrouped
+                                imageGroups={medicalImagesGroups}
+                                selectedImage={selectedImage}
+                                onImageSelect={setSelectedImage}
+                                patient={patient}
+                            />
+                        </div>
+                    )}
 
-                    {/* Middle Column - Selected Image (3/7) */}
-                    <div className="lg:col-span-3">
+                    {/* Middle Column - Selected Image (3/7 or expanded to 4/6) */}
+                    <div className={
+                        isLeftCollapsed 
+                            ? 'lg:col-span-4' 
+                            : 'lg:col-span-3'
+                    }>
                         <ImageViewer image={selectedImage} />
                     </div>
 
                     {/* Right Column - AI Analysis (2/7) */}
                     <div className="lg:col-span-2">
                         <div className="bg-[#1a1a1a] border border-white/10 rounded-xl overflow-hidden h-[calc(100vh-110px)] flex flex-col">
-                            {/* Header with Dropdown */}
+                            {/* Header with AI Analyze Button */}
                             <div className="px-4 py-3 border-b border-white/10 bg-[#141414] flex items-center justify-between">
                                 <h3 className="text-base font-semibold text-white">Reporting</h3>
 
-                                {/* Dropdown Menu */}
-                                <div className="relative">
-                                    <button
-                                        onClick={() => setDropdownOpen(!dropdownOpen)}
-                                        className="p-1 hover:bg-white/10 rounded transition-colors"
-                                    >
-                                        <MoreVertical className="w-4 h-4 text-gray-400" />
-                                    </button>
-
-                                    {dropdownOpen && (
-                                        <div className="absolute right-0 mt-2 w-48 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-lg z-10">
-                                            <button
-                                                onClick={() => {
-                                                    setActiveTab('analysis');
-                                                    setDropdownOpen(false);
-                                                }}
-                                                className={`w-full text-left px-4 py-2 text-sm transition-colors ${activeTab === 'analysis'
-                                                    ? 'bg-teal-500/20 text-teal-400'
-                                                    : 'text-gray-300 hover:bg-white/5'
-                                                    }`}
-                                            >
-                                                Analysis
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    setActiveTab('recommendations');
-                                                    setDropdownOpen(false);
-                                                }}
-                                                className={`w-full text-left px-4 py-2 text-sm transition-colors rounded-b-lg ${activeTab === 'recommendations'
-                                                    ? 'bg-teal-500/20 text-teal-400'
-                                                    : 'text-gray-300 hover:bg-white/5'
-                                                    }`}
-                                            >
-                                                Recommendations
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
+                                {/* AI Analyze Button - Always Teal */}
+                                <button
+                                    onClick={handleAIAnalyze}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all bg-amber-500 text-white shadow-lg shadow-amber-500/50 hover:bg-amber-600 active:scale-95 cursor-pointer"
+                                >
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    <span className="font-medium">AI Analyze</span>
+                                </button>
                             </div>
 
                             {/* Scrollable Content */}
                             <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
-                                {activeTab === 'analysis' && (
-                                    <AnalysisTab
-                                        findings={analysisData.findings}
-                                        metrics={analysisData.metrics}
-                                    />
-                                )}
-                                {activeTab === 'recommendations' && (
-                                    <RecommendationsTab
-                                        recommendations={analysisData.recommendations}
-                                    />
+                                {analysisData ? (
+                                    <div className="space-y-4">
+                                        <AnalysisTab
+                                            findings={analysisData.findings}
+                                            metrics={analysisData.metrics}
+                                        />
+                                        <div className="border-t border-white/10 pt-4">
+                                            <RecommendationsTab
+                                                recommendations={analysisData.recommendations}
+                                            />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-center h-full text-center">
+                                        <div>
+                                            <Sparkles className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                                            <p className="text-sm text-gray-500">Click "AI Analyze" to generate</p>
+                                            <p className="text-sm text-gray-500">automated analysis</p>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
                         </div>

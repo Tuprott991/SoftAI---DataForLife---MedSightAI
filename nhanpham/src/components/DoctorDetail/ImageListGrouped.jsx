@@ -52,8 +52,8 @@ export const ImageListGrouped = ({ imageGroups, selectedImage, onImageSelect, pa
                                     setDropdownOpen(false);
                                 }}
                                 className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center gap-2 ${viewMode === 'images'
-                                        ? 'bg-teal-500/20 text-teal-400'
-                                        : 'text-gray-300 hover:bg-white/5'
+                                    ? 'bg-teal-500/20 text-teal-400'
+                                    : 'text-gray-300 hover:bg-white/5'
                                     }`}
                             >
                                 <Folder className="w-4 h-4" />
@@ -65,8 +65,8 @@ export const ImageListGrouped = ({ imageGroups, selectedImage, onImageSelect, pa
                                     setDropdownOpen(false);
                                 }}
                                 className={`w-full text-left px-4 py-2 text-sm transition-colors rounded-b-lg flex items-center gap-2 ${viewMode === 'patient'
-                                        ? 'bg-teal-500/20 text-teal-400'
-                                        : 'text-gray-300 hover:bg-white/5'
+                                    ? 'bg-teal-500/20 text-teal-400'
+                                    : 'text-gray-300 hover:bg-white/5'
                                     }`}
                             >
                                 <User className="w-4 h-4" />
@@ -80,7 +80,7 @@ export const ImageListGrouped = ({ imageGroups, selectedImage, onImageSelect, pa
             <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
                 {viewMode === 'images' ? (
                     /* Medical Images View */
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         {imageGroups.map((group) => (
                             <div key={group.id} className="bg-[#0f0f0f] border border-white/5 rounded-lg overflow-hidden">
                                 {/* Group Header */}
@@ -150,20 +150,21 @@ export const ImageListGrouped = ({ imageGroups, selectedImage, onImageSelect, pa
                     <div className="space-y-3">
                         <div className="bg-[#0f0f0f] border border-white/5 rounded-lg p-3">
                             <h4 className="text-xs font-semibold text-teal-400 mb-2">Personal Details</h4>
-                            <div className="space-y-2">
-                                <div>
+
+                            <div className="space-y-3">
+                                <div className="flex justify-between">
                                     <p className="text-xs text-gray-500">Full Name</p>
                                     <p className="text-sm text-white">{patient?.name || 'N/A'}</p>
                                 </div>
-                                <div>
+                                <div className="flex justify-between">
                                     <p className="text-xs text-gray-500">Age</p>
                                     <p className="text-sm text-white">{patient?.age || 'N/A'} years</p>
                                 </div>
-                                <div>
+                                <div className="flex justify-between">
                                     <p className="text-xs text-gray-500">Gender</p>
                                     <p className="text-sm text-white">{patient?.gender || 'N/A'}</p>
                                 </div>
-                                <div>
+                                <div className="flex justify-between">
                                     <p className="text-xs text-gray-500">Blood Type</p>
                                     <p className="text-sm text-white">{patient?.bloodType || 'N/A'}</p>
                                 </div>
@@ -172,25 +173,25 @@ export const ImageListGrouped = ({ imageGroups, selectedImage, onImageSelect, pa
 
                         <div className="bg-[#0f0f0f] border border-white/5 rounded-lg p-3">
                             <h4 className="text-xs font-semibold text-teal-400 mb-2">Medical Information</h4>
-                            <div className="space-y-2">
-                                <div>
+                            <div className="space-y-3">
+                                <div className="flex justify-between">
                                     <p className="text-xs text-gray-500">Diagnosis</p>
                                     <p className="text-sm text-white">{patient?.diagnosis || 'N/A'}</p>
                                 </div>
-                                <div>
+                                <div className="flex justify-between">
                                     <p className="text-xs text-gray-500">Status</p>
                                     <span className={`inline-block text-xs px-2 py-0.5 rounded ${patient?.status === 'Critical' ? 'bg-red-500/20 text-red-400' :
-                                            patient?.status === 'Under Treatment' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                'bg-teal-500/20 text-teal-400'
+                                        patient?.status === 'Under Treatment' ? 'bg-yellow-500/20 text-yellow-400' :
+                                            'bg-teal-500/20 text-teal-400'
                                         }`}>
                                         {patient?.status || 'N/A'}
                                     </span>
                                 </div>
-                                <div>
+                                <div className="flex justify-between">
                                     <p className="text-xs text-gray-500">Admission Date</p>
                                     <p className="text-sm text-white">{patient?.admissionDate || 'N/A'}</p>
                                 </div>
-                                <div>
+                                <div className="flex justify-between">
                                     <p className="text-xs text-gray-500">Last Visit</p>
                                     <p className="text-sm text-white">{patient?.lastVisit || 'N/A'}</p>
                                 </div>
