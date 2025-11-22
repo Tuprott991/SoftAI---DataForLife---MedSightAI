@@ -1,7 +1,10 @@
 import { Calendar, User, Activity, Droplet } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 export const PatientCard = ({ patient }) => {
+    const location = useLocation();
+    const isStudentPage = location.pathname.includes('/student');
+
     const getStatusColor = (status) => {
         switch (status) {
             case 'Critical':
@@ -59,7 +62,7 @@ export const PatientCard = ({ patient }) => {
                 </div>
 
                 <Link
-                    to={`/doctor/${patient.id}`}
+                    to={isStudentPage ? `/student/${patient.id}` : `/doctor/${patient.id}`}
                     className="mt-4 w-full bg-teal-500/20 hover:bg-teal-500 text-teal-400 hover:text-white border border-teal-500/30 hover:border-teal-500 px-4 py-2 rounded-lg transition-all font-medium block text-center"
                 >
                     View Details

@@ -1,34 +1,93 @@
-import React from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { patientsData } from '../constants/patients';
+import {
+    ImageInteractiveSection,
+    SubmitSection,
+    ChatbotSection
+} from '../components/StudentDetail';
 
 export const StudentDetail = () => {
     const { id } = useParams();
+    const patient = patientsData.find(p => p.id === parseInt(id));
+    const [caseData, setCaseData] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    // Simulate API call to fetch case data
+    useEffect(() => {
+        const fetchCaseData = async () => {
+            setLoading(true);
+
+            // Mock API delay
+            await new Promise(resolve => setTimeout(resolve, 800));
+
+            // Mock case data
+            const mockCase = {
+                id: parseInt(id),
+                patientName: patient?.name || 'Unknown Patient',
+                age: patient?.age || 0,
+                gender: patient?.gender || 'Unknown',
+                diagnosis: patient?.diagnosis || 'Unknown Condition',
+                imageUrl: patient?.image || 'https://images.unsplash.com/photo-1559757175-0eb30cd8c063?w=800',
+                description: 'Medical imaging case for educational purposes',
+                difficulty: 'Intermediate'
+            };
+
+            setCaseData(mockCase);
+            setLoading(false);
+        };
+
+        fetchCaseData();
+    }, [id, patient]);
+
+    const handleSubmitDiagnosis = (submissionData) => {
+        console.log('Student submitted diagnosis:', submissionData);
+        // TODO: Send to API
+    };
+
+    if (!patient) {
+        return (
+            <div className="h-screen bg-[#0a0a0a] text-white flex items-center justify-center">
+                <div className="text-center">
+                    <h1 className="text-2xl font-bold mb-2">Case Not Found</h1>
+                    <p className="text-gray-400">The case you're looking for doesn't exist.</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (loading) {
+        return (
+            <div className="h-screen bg-[#0a0a0a] text-white flex items-center justify-center">
+                <div className="text-center">
+                    <div className="w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-400">Loading case...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="min-h-screen bg-[#1b1b1b] text-white">
-            <div className="container mx-auto px-6 py-8">
-                {/* Back Button */}
-                <Link
-                    to="/student"
-                    className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                    <span>Back to Student Portal</span>
-                </Link>
+        <div className="h-screen bg-[#0a0a0a] text-white overflow-hidden flex flex-col">
+            {/* Main Content - Fixed Height */}
+            <div className="flex-1 overflow-hidden min-h-0">
+                <div className="h-full px-6 py-6">
+                    {/* Two Column Layout */}
+                    <div className="grid grid-cols-1 lg:grid-cols-7 gap-6 h-full max-w-[1600px] mx-auto">
 
-                {/* Content */}
-                <div className="flex items-center justify-center min-h-[60vh]">
-                    <div className="text-center">
-                        <div className="w-20 h-20 bg-teal-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-teal-500/30">
-                            <span className="text-4xl font-bold text-teal-500">{id}</span>
+                        {/* Left Column - Image + Submit (4/7) */}
+                        <div className="lg:col-span-4 flex flex-col gap-4 h-full min-h-0">
+                            {/* Image Interactive Section - Takes remaining space */}
+                            <ImageInteractiveSection caseData={caseData} />
+
+                            {/* Submit Section - Fixed height */}
+                            <SubmitSection onSubmit={handleSubmitDiagnosis} />
                         </div>
-                        <h1 className="text-4xl md:text-5xl font-bold mb-4">
-                            Hello <span className="text-teal-500">{id}</span>
-                        </h1>
-                        <p className="text-gray-400 text-lg">
-                            Student Detail Page - ID: {id}
-                        </p>
+
+                        {/* Right Column - Chatbot (3/7) */}
+                        <div className="lg:col-span-3 h-full min-h-0">
+                            <ChatbotSection />
+                        </div>
                     </div>
                 </div>
             </div>

@@ -1,0 +1,175 @@
+import { useState, useRef, useEffect } from 'react';
+import { Send, Bot, User, Loader2 } from 'lucide-react';
+
+export const ChatbotSection = () => {
+    const [messages, setMessages] = useState([
+        {
+            id: 1,
+            type: 'bot',
+            text: "Hello! I'm your AI medical assistant. I can help you understand this case better. Feel free to ask me anything!",
+            timestamp: new Date()
+        }
+    ]);
+    const [inputMessage, setInputMessage] = useState('');
+    const [isTyping, setIsTyping] = useState(false);
+    const messagesEndRef = useRef(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    const handleSendMessage = async () => {
+        if (!inputMessage.trim()) return;
+
+        // Add user message
+        const userMessage = {
+            id: Date.now(),
+            type: 'user',
+            text: inputMessage,
+            timestamp: new Date()
+        };
+
+        setMessages(prev => [...prev, userMessage]);
+        setInputMessage('');
+        setIsTyping(true);
+
+        // Simulate AI response
+        setTimeout(() => {
+            const botMessage = {
+                id: Date.now() + 1,
+                type: 'bot',
+                text: generateMockResponse(inputMessage),
+                timestamp: new Date()
+            };
+            setMessages(prev => [...prev, botMessage]);
+            setIsTyping(false);
+        }, 1500);
+    };
+
+    const generateMockResponse = (question) => {
+        const responses = [
+            "Based on the imaging patterns, I can see signs consistent with the diagnosis. The key indicators include...",
+            "That's a great question! In cases like this, we typically look for specific markers in the scan...",
+            "The pathology shown here is characterized by several distinctive features. Let me explain...",
+            "Good observation! This finding is significant because it suggests...",
+            "To answer your question, we need to consider multiple factors including patient history and imaging results..."
+        ];
+        return responses[Math.floor(Math.random() * responses.length)];
+    };
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSendMessage();
+        }
+    };
+
+    return (
+        <div className="h-full bg-[#1a1a1a] border border-white/10 rounded-xl overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="px-4 py-3 border-b border-white/10 bg-[#141414] shrink-0">
+                <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-teal-500/20 rounded-lg flex items-center justify-center">
+                        <Bot className="w-5 h-5 text-teal-500" />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-semibold text-white">AI Assistant</h3>
+                        <p className="text-xs text-gray-400">Ask me anything about this case</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Messages Container */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+                {messages.map((message) => (
+                    <div
+                        key={message.id}
+                        className={`flex gap-3 ${message.type === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+                    >
+                        {/* Avatar */}
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${message.type === 'bot'
+                                ? 'bg-teal-500/20 text-teal-500'
+                                : 'bg-blue-500/20 text-blue-400'
+                            }`}>
+                            {message.type === 'bot' ? (
+                                <Bot className="w-4 h-4" />
+                            ) : (
+                                <User className="w-4 h-4" />
+                            )}
+                        </div>
+
+                        {/* Message Bubble */}
+                        <div className={`flex-1 max-w-[80%] ${message.type === 'user' ? 'text-right' : ''}`}>
+                            <div className={`inline-block px-4 py-2 rounded-lg text-sm ${message.type === 'bot'
+                                    ? 'bg-white/5 text-gray-200 border border-white/10'
+                                    : 'bg-teal-500 text-white'
+                                }`}>
+                                {message.text}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                                {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+
+                {/* Typing Indicator */}
+                {isTyping && (
+                    <div className="flex gap-3">
+                        <div className="w-8 h-8 bg-teal-500/20 rounded-lg flex items-center justify-center shrink-0">
+                            <Bot className="w-4 h-4 text-teal-500" />
+                        </div>
+                        <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-lg">
+                            <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                        </div>
+                    </div>
+                )}
+
+                <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input Area */}
+            <div className="px-4 py-3 border-t border-white/10 bg-[#141414] shrink-0">
+                <div className="flex gap-2">
+                    <input
+                        type="text"
+                        value={inputMessage}
+                        onChange={(e) => setInputMessage(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        placeholder="Ask about this case..."
+                        className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-teal-500 transition-colors"
+                    />
+                    <button
+                        onClick={handleSendMessage}
+                        disabled={!inputMessage.trim() || isTyping}
+                        className="px-4 py-2 bg-teal-500 hover:bg-teal-600 disabled:bg-white/5 disabled:text-gray-500 text-white rounded-lg transition-colors shrink-0"
+                    >
+                        <Send className="w-4 h-4" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Custom Scrollbar Styles */}
+            <style jsx>{`
+                .custom-scrollbar::-webkit-scrollbar {
+                    width: 6px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-track {
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 3px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: rgba(20, 184, 166, 0.3);
+                    border-radius: 3px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: rgba(20, 184, 166, 0.5);
+                }
+            `}</style>
+        </div>
+    );
+};
