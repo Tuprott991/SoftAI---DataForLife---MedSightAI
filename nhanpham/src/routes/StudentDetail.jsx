@@ -84,13 +84,13 @@ export const StudentDetail = () => {
                         {/* Left Column - Image + Submit (4/7) */}
                         <div className="lg:col-span-4 flex flex-col gap-4 h-full min-h-0">
                             {/* Image Interactive Section - Takes remaining space */}
-                            <ImageInteractiveSection 
+                            <ImageInteractiveSection
                                 caseData={caseData}
                                 onAnnotationsChange={handleAnnotationsChange}
                             />
 
                             {/* Submit Section - Fixed height */}
-                            <SubmitSection 
+                            <SubmitSection
                                 onSubmit={handleSubmitDiagnosis}
                                 annotations={annotations}
                             />

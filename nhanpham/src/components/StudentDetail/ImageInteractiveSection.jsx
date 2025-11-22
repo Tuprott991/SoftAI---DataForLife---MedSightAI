@@ -51,7 +51,7 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') {
             return;
         }
-        
+
         if (!imageRef.current) return;
 
         const rect = imageRef.current.getBoundingClientRect();
@@ -185,11 +185,10 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
                     <div className="flex items-center gap-1">
                         <button
                             onClick={togglePanMode}
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded transition-colors ${
-                                panMode
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded transition-colors ${panMode
                                     ? 'bg-blue-500 text-white'
                                     : 'text-gray-400 hover:text-white hover:bg-white/10'
-                            }`}
+                                }`}
                             title="Pan/Move Image"
                         >
                             <Hand className="w-3.5 h-3.5" />
@@ -198,11 +197,10 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
 
                         <button
                             onClick={toggleDrawMode}
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded transition-colors ${
-                                drawMode
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded transition-colors ${drawMode
                                     ? 'bg-teal-500 text-white'
                                     : 'text-gray-400 hover:text-white hover:bg-white/10'
-                            }`}
+                                }`}
                             title="Draw Bounding Box"
                         >
                             <Pencil className="w-3.5 h-3.5" />
@@ -232,13 +230,13 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
             </div>
 
             {/* Image Display */}
-            <div 
+            <div
                 ref={containerRef}
                 className="flex-1 bg-black/30 flex items-center justify-center overflow-hidden p-4"
             >
-                <div 
+                <div
                     className="relative"
-                    style={{ 
+                    style={{
                         cursor: drawMode ? 'crosshair' : panMode ? 'grab' : 'default',
                         transform: `translate(${position.x}px, ${position.y}px) scale(${zoom / 100}) rotate(${rotation}deg)`,
                         transition: isPanning ? 'none' : 'transform 300ms'
@@ -261,11 +259,10 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
                         <div
                             key={index}
                             onClick={(e) => handleBoxClick(index, e)}
-                            className={`absolute border-2 pointer-events-auto cursor-pointer transition-all ${
-                                selectedBoxIndex === index
+                            className={`absolute border-2 pointer-events-auto cursor-pointer transition-all ${selectedBoxIndex === index
                                     ? 'border-yellow-400 shadow-lg'
                                     : 'border-teal-500'
-                            }`}
+                                }`}
                             style={{
                                 left: box.x,
                                 top: box.y,
@@ -276,10 +273,9 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
                                     : 'rgba(20, 184, 166, 0.1)'
                             }}
                         >
-                            <div 
-                                className={`absolute left-0 flex items-center gap-1 px-1.5 py-0.5 rounded whitespace-nowrap ${
-                                    selectedBoxIndex === index ? 'bg-yellow-400' : 'bg-teal-500'
-                                } text-white`}
+                            <div
+                                className={`absolute left-0 flex items-center gap-1 px-1.5 py-0.5 rounded whitespace-nowrap ${selectedBoxIndex === index ? 'bg-yellow-400' : 'bg-teal-500'
+                                    } text-white`}
                                 style={{
                                     top: -20 / (zoom / 100),
                                     fontSize: `${12 / (zoom / 100)}px`
