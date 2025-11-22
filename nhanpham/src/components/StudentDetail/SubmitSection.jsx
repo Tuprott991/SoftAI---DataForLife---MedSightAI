@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Send, CheckCircle2 } from 'lucide-react';
 
-export const SubmitSection = ({ onSubmit }) => {
+export const SubmitSection = ({ onSubmit, annotations = [] }) => {
     const [diagnosis, setDiagnosis] = useState('');
     const [submitted, setSubmitted] = useState(false);
 
@@ -13,6 +13,7 @@ export const SubmitSection = ({ onSubmit }) => {
 
         const submissionData = {
             diagnosis,
+            annotations,
             timestamp: new Date().toISOString()
         };
 

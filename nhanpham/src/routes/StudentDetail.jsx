@@ -12,6 +12,7 @@ export const StudentDetail = () => {
     const patient = patientsData.find(p => p.id === parseInt(id));
     const [caseData, setCaseData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [annotations, setAnnotations] = useState([]);
 
     // Simulate API call to fetch case data
     useEffect(() => {
@@ -40,8 +41,13 @@ export const StudentDetail = () => {
         fetchCaseData();
     }, [id, patient]);
 
+    const handleAnnotationsChange = (newAnnotations) => {
+        setAnnotations(newAnnotations);
+    };
+
     const handleSubmitDiagnosis = (submissionData) => {
         console.log('Student submitted diagnosis:', submissionData);
+        console.log('Annotations:', submissionData.annotations);
         // TODO: Send to API
     };
 
@@ -78,10 +84,16 @@ export const StudentDetail = () => {
                         {/* Left Column - Image + Submit (4/7) */}
                         <div className="lg:col-span-4 flex flex-col gap-4 h-full min-h-0">
                             {/* Image Interactive Section - Takes remaining space */}
-                            <ImageInteractiveSection caseData={caseData} />
+                            <ImageInteractiveSection 
+                                caseData={caseData}
+                                onAnnotationsChange={handleAnnotationsChange}
+                            />
 
                             {/* Submit Section - Fixed height */}
-                            <SubmitSection onSubmit={handleSubmitDiagnosis} />
+                            <SubmitSection 
+                                onSubmit={handleSubmitDiagnosis}
+                                annotations={annotations}
+                            />
                         </div>
 
                         {/* Right Column - Chatbot (3/7) */}
