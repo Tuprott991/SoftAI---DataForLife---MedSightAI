@@ -1,15 +1,16 @@
 import { useState, useRef } from 'react';
-import { ZoomIn, ZoomOut, RotateCw, Pencil, Trash2, Hand } from 'lucide-react';
+import { ZoomIn, ZoomOut, Pencil, Trash2, Hand, Undo, Redo } from 'lucide-react';
 
 export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
     const [zoom, setZoom] = useState(100);
-    const [rotation, setRotation] = useState(0);
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [isDrawing, setIsDrawing] = useState(false);
     const [isPanning, setIsPanning] = useState(false);
     const [startPoint, setStartPoint] = useState(null);
     const [currentBox, setCurrentBox] = useState(null);
     const [boxes, setBoxes] = useState([]);
+    const [history, setHistory] = useState([]);
+    const [historyIndex, setHistoryIndex] = useState(-1);
     const [drawMode, setDrawMode] = useState(false);
     const [panMode, setPanMode] = useState(false);
     const [selectedBoxIndex, setSelectedBoxIndex] = useState(null);
@@ -19,11 +20,36 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
 
     const handleZoomIn = () => setZoom(prev => Math.min(prev + 25, 200));
     const handleZoomOut = () => setZoom(prev => Math.max(prev - 25, 50));
-    const handleRotate = () => setRotation(prev => (prev + 90) % 360);
     const handleReset = () => {
         setZoom(100);
-        setRotation(0);
         setPosition({ x: 0, y: 0 });
+    };
+
+    const addToHistory = (newBoxes) => {
+        const newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push(newBoxes);
+        setHistory(newHistory);
+        setHistoryIndex(newHistory.length - 1);
+    };
+
+    const handleUndo = () => {
+        if (historyIndex > 0) {
+            const newIndex = historyIndex - 1;
+            setHistoryIndex(newIndex);
+            const previousState = history[newIndex];
+            setBoxes(previousState);
+            onAnnotationsChange?.(previousState);
+        }
+    };
+
+    const handleRedo = () => {
+        if (historyIndex < history.length - 1) {
+            const newIndex = historyIndex + 1;
+            setHistoryIndex(newIndex);
+            const nextState = history[newIndex];
+            setBoxes(nextState);
+            onAnnotationsChange?.(nextState);
+        }
     };
 
     const toggleDrawMode = () => {
@@ -42,8 +68,10 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
     };
 
     const clearAllBoxes = () => {
-        setBoxes([]);
-        onAnnotationsChange?.([]);
+        const newBoxes = [];
+        setBoxes(newBoxes);
+        addToHistory(newBoxes);
+        onAnnotationsChange?.(newBoxes);
     };
 
     const handleMouseDown = (e) => {
@@ -102,6 +130,7 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
                 const newBox = { ...currentBox, label: 'Finding' };
                 const newBoxes = [...boxes, newBox];
                 setBoxes(newBoxes);
+                addToHistory(newBoxes);
                 onAnnotationsChange?.(newBoxes);
             }
             setIsDrawing(false);
@@ -125,6 +154,7 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
             const newBoxes = [...boxes];
             newBoxes[index] = { ...newBoxes[index], label: editingLabel.trim() };
             setBoxes(newBoxes);
+            addToHistory(newBoxes);
             onAnnotationsChange?.(newBoxes);
         }
         setSelectedBoxIndex(null);
@@ -135,6 +165,7 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
         e.stopPropagation();
         const newBoxes = boxes.filter((_, i) => i !== index);
         setBoxes(newBoxes);
+        addToHistory(newBoxes);
         onAnnotationsChange?.(newBoxes);
         setSelectedBoxIndex(null);
     };
@@ -183,11 +214,20 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
                         <div className="w-px h-4 bg-white/10 mx-2"></div>
 
                         <button
-                            onClick={handleRotate}
-                            className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"
-                            title="Rotate"
+                            onClick={handleUndo}
+                            disabled={historyIndex <= 0}
+                            className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Undo"
                         >
-                            <RotateCw className="w-4 h-4" />
+                            <Undo className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={handleRedo}
+                            disabled={historyIndex >= history.length - 1}
+                            className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Redo"
+                        >
+                            <Redo className="w-4 h-4" />
                         </button>
                     </div>
 
@@ -239,7 +279,7 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
                     className="relative"
                     style={{
                         cursor: drawMode ? 'crosshair' : panMode ? 'grab' : 'default',
-                        transform: `translate(${position.x}px, ${position.y}px) scale(${zoom / 100}) rotate(${rotation}deg)`,
+                        transform: `translate(${position.x}px, ${position.y}px) scale(${zoom / 100})`,
                         transition: isPanning ? 'none' : 'transform 300ms'
                     }}
                 >
