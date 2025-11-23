@@ -54,12 +54,12 @@ export const Layout = () => {
                                     <span className="text-sm">{backLabel}</span>
                                 </Link>
                             ) : (
-                                <div className="flex items-center gap-2">
+                                <Link to="/home" className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer">
                                     <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center">
                                         <span className="text-white font-bold text-sm">M</span>
                                     </div>
                                     <h1 className="text-xl font-bold text-white">MedSightAI</h1>
-                                </div>
+                                </Link>
                             )}
 
                             {/* Center - Patient Info (only on detail pages) */}

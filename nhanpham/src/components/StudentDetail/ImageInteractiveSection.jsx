@@ -154,6 +154,15 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1">
                         <button
+                            onClick={handleReset}
+                            className="px-2.5 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"
+                        >
+                            Reset
+                        </button>
+
+                        <div className="w-px h-4 bg-white/10 mx-2"></div>
+
+                        <button
                             onClick={handleZoomOut}
                             className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"
                             title="Zoom Out"
@@ -185,7 +194,7 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
                     <div className="flex items-center gap-1">
                         <button
                             onClick={togglePanMode}
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded transition-colors ${panMode
+                            className={`cursor-pointer flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded transition-colors ${panMode
                                 ? 'bg-teal-500 text-white'
                                 : 'text-gray-400 hover:text-white hover:bg-white/10'
                                 }`}
@@ -197,7 +206,7 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
 
                         <button
                             onClick={toggleDrawMode}
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded transition-colors ${drawMode
+                            className={`cursor-pointer flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded transition-colors ${drawMode
                                 ? 'bg-teal-500 text-white'
                                 : 'text-gray-400 hover:text-white hover:bg-white/10'
                                 }`}
@@ -210,21 +219,13 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
                         {boxes.length > 0 && (
                             <button
                                 onClick={clearAllBoxes}
-                                className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-white/10 rounded transition-colors"
-                                title="Clear All Boxes"
+                                className={`cursor-pointer flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded transition-colors border border-red-500 text-red-500 hover:bg-red-500/10 hover:text-red-400`}
+                                title="Delete All Annotations"
                             >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Remove all</span>
                             </button>
                         )}
-
-                        <div className="w-px h-4 bg-white/10 mx-1"></div>
-
-                        <button
-                            onClick={handleReset}
-                            className="px-2.5 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"
-                        >
-                            Reset
-                        </button>
                     </div>
                 </div>
             </div>
