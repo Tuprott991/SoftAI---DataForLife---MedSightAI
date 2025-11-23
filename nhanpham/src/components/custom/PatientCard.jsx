@@ -19,13 +19,13 @@ export const PatientCard = ({ patient }) => {
     };
 
     return (
-        <div className="group bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden hover:bg-white/10 hover:border-teal-500/50 transition-all duration-300 hover:transform hover:scale-105 cursor-pointer">
+        <div className="group bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden transition-all duration-300">
             {/* Patient Image */}
             <div className="relative h-48 overflow-hidden bg-linear-to-br from-teal-500/20 to-emerald-500/20">
                 <img
                     src={patient.image}
                     alt={patient.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    className="w-full h-full object-cover transition-transform duration-300"
                 />
                 <div className="absolute top-3 right-3">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(patient.status)}`}>

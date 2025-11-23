@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Stethoscope, GraduationCap, Activity, Sparkles, TrendingUp, Users } from 'lucide-react';
+import { AnimatedCounter } from './AnimatedCounter';
 
 export const HeroSection = () => {
     return (
@@ -36,29 +37,30 @@ export const HeroSection = () => {
                         Empowering doctors and students with cutting-edge diagnostic tools and medical insights.
                     </p>
 
-                    {/* Stats */}
-                    <div className="flex flex-wrap justify-center gap-8 mb-12 text-center">
-                        <div className="flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-teal-400" />
-                            <div>
-                                <span className="block text-2xl font-bold text-white">99.2%</span>
-                                <span className="text-sm text-gray-400">Accuracy</span>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Users className="w-5 h-5 text-teal-400" />
-                            <div>
-                                <span className="block text-2xl font-bold text-white">10,000+</span>
-                                <span className="text-sm text-gray-400">Medical Professionals</span>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <TrendingUp className="w-5 h-5 text-teal-400" />
-                            <div>
-                                <span className="block text-2xl font-bold text-white">50,000+</span>
-                                <span className="text-sm text-gray-400">Cases Analyzed</span>
-                            </div>
-                        </div>
+                    {/* Stats with Animated Counters */}
+                    <div className="flex flex-wrap justify-center gap-8 lg:gap-12 mb-12">
+                        <AnimatedCounter
+                            end={99.2}
+                            decimals={1}
+                            suffix="%"
+                            duration={2500}
+                            icon={Sparkles}
+                            label="Diagnostic Accuracy"
+                        />
+                        <AnimatedCounter
+                            end={10000}
+                            suffix="+"
+                            duration={2500}
+                            icon={Users}
+                            label="Medical Professionals"
+                        />
+                        <AnimatedCounter
+                            end={50000}
+                            suffix="+"
+                            duration={2500}
+                            icon={TrendingUp}
+                            label="Cases Analyzed"
+                        />
                     </div>
 
                     {/* CTA Buttons */}
