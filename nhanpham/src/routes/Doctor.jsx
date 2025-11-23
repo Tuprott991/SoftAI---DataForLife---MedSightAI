@@ -65,7 +65,7 @@ export const Doctor = () => {
                     </div>
 
                     {/* Filter Button */}
-                    <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-teal-500/50 px-6 py-3 rounded-lg transition-all">
+                    <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-teal-500/50 px-6 py-3 rounded-lg transition-all cursor-pointer">
                         <Filter className="w-5 h-5" />
                         <span className="font-medium">Filter</span>
                     </button>

@@ -186,7 +186,7 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
                     <div className="flex items-center gap-1">
                         <button
                             onClick={handleReset}
-                            className="px-2.5 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"
+                            className="px-2.5 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer"
                         >
                             Reset
                         </button>
@@ -195,7 +195,7 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
 
                         <button
                             onClick={handleZoomOut}
-                            className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer"
                             title="Zoom Out"
                         >
                             <ZoomOut className="w-4 h-4" />
@@ -205,7 +205,7 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
                         </span>
                         <button
                             onClick={handleZoomIn}
-                            className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer"
                             title="Zoom In"
                         >
                             <ZoomIn className="w-4 h-4" />
