@@ -75,6 +75,33 @@ class VinDrClassifierDataset(Dataset):
     def __len__(self):
         return len(self.image_ids)
 
+    def read_dicom(self, path):
+        """Hàm đọc và xử lý ảnh DICOM"""
+        try:
+            dcm = pydicom.dcmread(path)
+            image = dcm.pixel_array
+
+            # Xử lý Photometric Interpretation (Đảo màu nếu cần)
+            # Một số ảnh DICOM lưu dạng MONOCHROME1 (đen là trắng), cần đảo lại
+            if hasattr(dcm, "PhotometricInterpretation"):
+                if dcm.PhotometricInterpretation == "MONOCHROME1":
+                    image = np.amax(image) - image
+
+            # Chuẩn hóa về khoảng 0-255 (uint8)
+            # Vì DICOM thường là 12-bit hoặc 14-bit
+            image = image - np.min(image)
+            image = image / np.max(image)
+            image = (image * 255).astype(np.uint8)
+
+            # Chuyển từ 1 kênh (Grayscale) sang 3 kênh (RGB) để khớp với input của Model
+            image = np.stack([image] * 3, axis=-1)
+
+            return image
+        except Exception as e:
+            print(f"Lỗi đọc DICOM {path}: {e}")
+            # Trả về ảnh đen nếu lỗi
+            return np.zeros((512, 512, 3), dtype=np.uint8)
+
     def __getitem__(self, idx):
         img_id = self.image_ids[idx]
 
