@@ -15,7 +15,7 @@ class MedicalConceptModel(nn.Module):
     ):  # Kích thước vector để retrieval
         super().__init__()
 
-        print(f"Initializing Backbone: {model_name}...")x   
+        print(f"Initializing Backbone: {model_name}...")
 
         # 1. Backbone (MedSigLIP Image Encoder)
         # Load model pre-trained từ HuggingFace
