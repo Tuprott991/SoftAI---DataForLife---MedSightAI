@@ -253,7 +253,13 @@ class MedicalConceptModel(nn.Module):
         # numerator:
         # Extract diagonal: for each batch b and concept i, take sim_all[b, i, i]
         # sim_all shape: (B, K_query, K_proto)
-        pos_sim = torch.diagonal(sim_all, dim1=1, dim2=2).transpose(0, 1)  # (B, K)
+        # torch.diagonal extracts diagonal which gives shape (B, K) where K = min(K_query, K_proto)
+        # But we need shape (B, K_query)
+        B = sim_all.shape[0]
+        K = self.num_concepts
+        
+        # Extract diagonal properly: sim_all[b, i, i] for all b and i
+        pos_sim = sim_all[torch.arange(B).unsqueeze(1), torch.arange(K), torch.arange(K)]  # (B, K)
         
         # denominator: sum over all K_proto concepts (dim=2)
         # sim_all: (B, K_query, K_proto) -> sum over K_proto -> (B, K_query)
