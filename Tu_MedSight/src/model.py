@@ -251,7 +251,8 @@ class MedicalConceptModel(nn.Module):
         delta = self.contrastive_delta
 
         # numerator:
-        pos_sim = sim_all[..., torch.arange(self.num_concepts)]  # (B, K) diagonal extraction
+        # Extract diagonal: for each batch b and concept i, take sim_all[b, i, i]
+        pos_sim = torch.diagonal(sim_all, dim1=1, dim2=2).transpose(0, 1)  # (B, K)
         # pos_sim equals sim_k most of the time
         numer = torch.exp(lambda_ * (pos_sim + delta))  # (B, K)
         denom = torch.exp(lambda_ * sim_all).sum(dim=-1)  # (B, K)
