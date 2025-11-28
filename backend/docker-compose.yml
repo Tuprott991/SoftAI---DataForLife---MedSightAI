@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # FastAPI Backend
+  backend:
+    build: .
+    container_name: medsight-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./:/app
+    depends_on:
+      - milvus-standalone
+    networks:
+      - medsight-network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Milvus Vector Database (Standalone)
+  milvus-standalone:
+    container_name: milvus-standalone
+    image: milvusdb/milvus:v2.3.3
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_USE_EMBED: true
+      COMMON_STORAGETYPE: local
+    volumes:
+      - milvus-data:/var/lib/milvus
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    networks:
+      - medsight-network
+
+networks:
+  medsight-network:
+    driver: bridge
+
+volumes:
+  milvus-data:
