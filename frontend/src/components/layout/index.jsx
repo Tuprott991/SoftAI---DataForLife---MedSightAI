@@ -81,27 +81,29 @@ export const Layout = () => {
                             {/* Right Side - Navigation Links or Action Icons */}
                             {!isDetailPage ? (
                                 <div className="flex gap-2">
-                                    <Link
-                                        to="/home"
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${isActive('/home')
-                                            ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/50'
-                                            : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                                            }`}
-                                    >
-                                        <HomeIcon className="w-4 h-4" />
-                                        <span className="font-medium">Trang Chủ</span>
-                                    </Link>
                                     {user?.role === 'doctor' && (
-                                        <Link
-                                            to="/doctor"
-                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${isActive('/doctor')
-                                                ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/50'
-                                                : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                                                }`}
-                                        >
-                                            <Stethoscope className="w-4 h-4" />
-                                            <span className="font-medium">Bác Sĩ</span>
-                                        </Link>
+                                        <>
+                                            <Link
+                                                to="/home"
+                                                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${isActive('/home')
+                                                    ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/50'
+                                                    : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                                                    }`}
+                                            >
+                                                <HomeIcon className="w-4 h-4" />
+                                                <span className="font-medium">Trang Chủ</span>
+                                            </Link>
+                                            <Link
+                                                to="/doctor"
+                                                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${isActive('/doctor')
+                                                    ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/50'
+                                                    : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                                                    }`}
+                                            >
+                                                <Stethoscope className="w-4 h-4" />
+                                                <span className="font-medium">Bác Sĩ</span>
+                                            </Link>
+                                        </>
                                     )}
                                     <Link
                                         to="/student"

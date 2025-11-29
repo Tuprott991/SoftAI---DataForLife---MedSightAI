@@ -69,7 +69,7 @@ export const LoginForm = ({ onLogin }) => {
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         className="block w-full pl-10 pr-3 py-3 border border-white/10 rounded-lg bg-[#1a1a1a] text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                        placeholder="doctor@example.com hoặc student@example.com"
+                        placeholder="Nhập email"
                         disabled={isLoading}
                     />
                 </div>

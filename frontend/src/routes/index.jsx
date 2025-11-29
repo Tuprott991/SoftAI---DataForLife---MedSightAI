@@ -36,7 +36,11 @@ const router = createBrowserRouter([
                 children: [
                     {
                         path: 'home',
-                        element: <Home />
+                        element: (
+                            <RoleGuard allowedRoles={['doctor']}>
+                                <Home />
+                            </RoleGuard>
+                        )
                     },
                     {
                         path: 'doctor',

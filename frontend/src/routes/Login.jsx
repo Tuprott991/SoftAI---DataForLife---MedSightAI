@@ -4,19 +4,28 @@ import { LoginForm } from '../components/authentication';
 import { useEffect } from 'react';
 
 const Login = () => {
-    const { login, isAuthenticated } = useAuth();
+    const { login, isAuthenticated, user } = useAuth();
     const navigate = useNavigate();
 
     // Redirect if already authenticated
     useEffect(() => {
         if (isAuthenticated) {
-            navigate('/home');
+            if (user?.role === 'student') {
+                navigate('/student');
+            } else {
+                navigate('/home');
+            }
         }
-    }, [isAuthenticated, navigate]);
+    }, [isAuthenticated, user, navigate]);
 
     const handleLogin = (userData) => {
         login(userData);
-        navigate('/home');
+        // Redirect based on role
+        if (userData.role === 'student') {
+            navigate('/student');
+        } else {
+            navigate('/home');
+        }
     };
 
     return (
