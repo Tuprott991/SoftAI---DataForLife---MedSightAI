@@ -14,11 +14,21 @@ export const Layout = () => {
     const params = useParams();
     const navigate = useNavigate();
     const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
     const { user, logout } = useAuth();
 
     const handleLogout = () => {
+        setShowLogoutModal(true);
+    };
+
+    const confirmLogout = () => {
+        setShowLogoutModal(false);
         logout();
         navigate('/login');
+    };
+
+    const cancelLogout = () => {
+        setShowLogoutModal(false);
     };
 
     const isActive = (path) => {
@@ -190,6 +200,37 @@ export const Layout = () => {
 
                 {/* FloatingDirection - Hidden on detail pages and settings page */}
                 {!isDetailPage && !isPacsSettingsPage && <FloatingDirection />}
+
+                {/* Logout Confirmation Modal */}
+                {showLogoutModal && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                        <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center">
+                                    <LogOut className="w-6 h-6 text-red-500" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold text-white">Xác nhận đăng xuất</h3>
+                                    <p className="text-sm text-gray-400">Bạn có chắc chắn muốn đăng xuất?</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    onClick={cancelLogout}
+                                    className="flex-1 px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium"
+                                >
+                                    Hủy
+                                </button>
+                                <button
+                                    onClick={confirmLogout}
+                                    className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors font-medium shadow-lg shadow-red-500/30"
+                                >
+                                    Đăng xuất
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </SidebarContext.Provider>
     )
