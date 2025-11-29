@@ -84,7 +84,7 @@ const Login = () => {
                 {/* Footer */}
                 <div className="text-center mt-8">
                     <p className="text-sm text-gray-500">
-                        © 2024 MedSightAI. Bảo mật và riêng tư được đảm bảo.
+                        © 2025 MedSightAI. Bảo mật và riêng tư được đảm bảo.
                     </p>
                 </div>
             </div>

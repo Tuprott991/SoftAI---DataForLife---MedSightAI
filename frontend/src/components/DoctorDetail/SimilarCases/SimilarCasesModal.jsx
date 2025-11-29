@@ -49,7 +49,7 @@ export const SimilarCasesModal = ({ isOpen, onClose, currentImage, patientInfo }
                         diagnosis: "Coronary Artery Disease",
                         imageUrl: "https://images.unsplash.com/photo-1559757175-0eb30cd8c063?w=400",
                         similarity: 94,
-                        date: "2024-10-15",
+                        date: "2025-10-15",
                         status: "Resolved"
                     },
                     {
@@ -60,7 +60,7 @@ export const SimilarCasesModal = ({ isOpen, onClose, currentImage, patientInfo }
                         diagnosis: "Hypertensive Heart Disease",
                         imageUrl: "https://images.unsplash.com/photo-1530026405186-ed1f139313f8?w=400",
                         similarity: 89,
-                        date: "2024-09-22",
+                        date: "2025-09-22",
                         status: "Stable"
                     },
                     {
@@ -71,7 +71,7 @@ export const SimilarCasesModal = ({ isOpen, onClose, currentImage, patientInfo }
                         diagnosis: "Coronary Artery Disease",
                         imageUrl: "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=400",
                         similarity: 87,
-                        date: "2024-08-10",
+                        date: "2025-08-10",
                         status: "Under Treatment"
                     },
                     {
@@ -82,7 +82,7 @@ export const SimilarCasesModal = ({ isOpen, onClose, currentImage, patientInfo }
                         diagnosis: "Acute Myocardial Infarction",
                         imageUrl: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400",
                         similarity: 85,
-                        date: "2024-11-01",
+                        date: "2025-11-01",
                         status: "Critical"
                     },
                     {
@@ -93,7 +93,7 @@ export const SimilarCasesModal = ({ isOpen, onClose, currentImage, patientInfo }
                         diagnosis: "Coronary Artery Disease",
                         imageUrl: "https://images.unsplash.com/photo-1504813184591-01572f98c85f?w=400",
                         similarity: 83,
-                        date: "2024-07-18",
+                        date: "2025-07-18",
                         status: "Resolved"
                     },
                     {
@@ -104,7 +104,7 @@ export const SimilarCasesModal = ({ isOpen, onClose, currentImage, patientInfo }
                         diagnosis: "Cardiomyopathy",
                         imageUrl: "https://images.unsplash.com/photo-1581594549595-35f6edc7b762?w=400",
                         similarity: 81,
-                        date: "2024-06-25",
+                        date: "2025-06-25",
                         status: "Stable"
                     }
                 ];
