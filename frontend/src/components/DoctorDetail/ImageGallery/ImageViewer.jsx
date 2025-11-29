@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Undo, Redo, PanelLeft, PanelLeftClose, Move, PanelRight, PanelRightClose } from 'lucide-react';
+import { Undo, Redo, PanelLeft, PanelLeftClose, Hand, PanelRight, PanelRightClose } from 'lucide-react';
 import { useSidebar } from '../../layout';
 import { SimilarCasesButton } from '../SimilarCases/SimilarCasesButton';
 import { SimilarCasesModal } from '../SimilarCases/SimilarCasesModal';
@@ -504,7 +504,7 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
                                 }`}
                             title="Di Chuyển Ảnh"
                         >
-                            <Move className="w-4 h-4" />
+                            <Hand className="w-4 h-4" />
                         </button>
                     </div>
 

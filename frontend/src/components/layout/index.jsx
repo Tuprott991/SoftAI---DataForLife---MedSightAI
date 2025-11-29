@@ -1,8 +1,9 @@
-import { Outlet, Link, useLocation, useParams } from "react-router-dom";
+import { Outlet, Link, useLocation, useParams, useNavigate } from "react-router-dom";
 import { FloatingDirection } from "./FloatingDirection";
-import { Stethoscope, GraduationCap, Home as HomeIcon, ArrowLeft, Settings, HelpCircle, Bell, User, PanelLeft, PanelLeftClose } from "lucide-react";
+import { Stethoscope, GraduationCap, Home as HomeIcon, ArrowLeft, Settings, HelpCircle, Bell, User, PanelLeft, PanelLeftClose, LogOut } from "lucide-react";
 import { patientsData } from "../../constants/patients";
 import { createContext, useContext, useState } from "react";
+import { useAuth } from "../authentication";
 
 // Create context for sidebar collapse state
 const SidebarContext = createContext();
@@ -11,7 +12,14 @@ export const useSidebar = () => useContext(SidebarContext);
 export const Layout = () => {
     const location = useLocation();
     const params = useParams();
+    const navigate = useNavigate();
     const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
+    const { user, logout } = useAuth();
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
 
     const isActive = (path) => {
         return location.pathname === path || (location.pathname === '/' && path === '/home');
@@ -83,16 +91,18 @@ export const Layout = () => {
                                         <HomeIcon className="w-4 h-4" />
                                         <span className="font-medium">Trang Chủ</span>
                                     </Link>
-                                    <Link
-                                        to="/doctor"
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${isActive('/doctor')
-                                            ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/50'
-                                            : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                                            }`}
-                                    >
-                                        <Stethoscope className="w-4 h-4" />
-                                        <span className="font-medium">Bác Sĩ</span>
-                                    </Link>
+                                    {user?.role === 'doctor' && (
+                                        <Link
+                                            to="/doctor"
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${isActive('/doctor')
+                                                ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/50'
+                                                : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                                                }`}
+                                        >
+                                            <Stethoscope className="w-4 h-4" />
+                                            <span className="font-medium">Bác Sĩ</span>
+                                        </Link>
+                                    )}
                                     <Link
                                         to="/student"
                                         className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${isActive('/student')
@@ -103,6 +113,14 @@ export const Layout = () => {
                                         <GraduationCap className="w-4 h-4" />
                                         <span className="font-medium">Sinh Viên</span>
                                     </Link>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-300 hover:bg-red-500/10 hover:text-red-400 transition-all"
+                                        title="Đăng xuất"
+                                    >
+                                        <LogOut className="w-4 h-4" />
+                                        <span className="font-medium">Đăng xuất</span>
+                                    </button>
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-3">
@@ -125,12 +143,23 @@ export const Layout = () => {
                                         </span>
                                     </button>
 
-                                    {/* Avatar */}
-                                    <button className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+                                    {/* User Menu */}
+                                    <div className="flex items-center gap-2 ml-2">
+                                        <div className="text-right mr-2">
+                                            <p className="text-sm font-medium text-white">{user?.name}</p>
+                                            <p className="text-xs text-gray-400">{user?.role === 'doctor' ? 'Bác sĩ' : 'Sinh viên'}</p>
+                                        </div>
                                         <div className="w-8 h-8 bg-teal-500 rounded-full flex items-center justify-center">
                                             <User className="w-5 h-5 text-white" />
                                         </div>
-                                    </button>
+                                        <button
+                                            onClick={handleLogout}
+                                            className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                            title="Đăng xuất"
+                                        >
+                                            <LogOut className="w-5 h-5" />
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
