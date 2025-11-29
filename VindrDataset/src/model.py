@@ -1,85 +1,89 @@
 import torch
 import torch.nn as nn
-from transformers import AutoModel
+import torch.nn.functional as F
+import timm  # Khuyên dùng timm cho linh hoạt backbone
 
 
 class MedicalConceptModel(nn.Module):
-    def __init__(self, num_classes=26, model_name="google/siglip-base-patch16-384"):
+    def __init__(self, num_classes=14, model_name="resnet50", pretrained=True):
         super().__init__()
 
-        # 1. Backbone (MedSigLIP)
-        # Load pre-trained weights từ HuggingFace
-        self.backbone = AutoModel.from_pretrained(model_name)
+        # 1. Backbone: Trích xuất đặc trưng không gian (Spatial Features)
+        # Output mong muốn: [Batch, Features, H_feat, W_feat]
+        self.backbone = timm.create_model(
+            model_name,
+            pretrained=pretrained,
+            features_only=True,
+            out_indices=(4,),  # Lấy output của layer cuối cùng
+        )
 
-        # Freeze backbone ban đầu (tuỳ chọn, mở ra nếu muốn finetune cả backbone)
-        for param in self.backbone.parameters():
-            param.requires_grad = False
+        # Lấy thông tin số kênh (channels) của backbone
+        feature_info = self.backbone.feature_info.get_dicts()[-1]
+        self.feature_dim = feature_info["num_chs"]  # Ví dụ ResNet50 là 2048
 
-        self.hidden_dim = self.backbone.config.vision_config.hidden_size
-        self.num_classes = num_classes
-
-        # 2. Concept Head (Tạo ra N bản đồ nhiệt cho N bệnh)
-        # Input: 768 -> Output: 26 channels (mỗi channel là 1 heatmap của 1 bệnh)
-        self.concept_head = nn.Conv2d(self.hidden_dim, num_classes, kernel_size=1)
+        # 2. Concept Head (Attention Mechanism)
+        # Tạo ra K bản đồ nhiệt cho K lớp bệnh
+        # Input: Feature_Dim -> Output: Num_Classes (1 map per class)
+        self.concept_head = nn.Conv2d(self.feature_dim, num_classes, kernel_size=1)
 
         # 3. Projector & Classifier
-        # Mỗi concept vector sẽ đi qua projector này
+        # Project vector đặc trưng về không gian nhỏ hơn để tính Cosine Similarity hiệu quả
+        self.embedding_dim = 128
         self.projector = nn.Sequential(
-            nn.Linear(self.hidden_dim, 512),
-            nn.LayerNorm(512),
+            nn.Linear(self.feature_dim, 512),
+            nn.BatchNorm1d(512),
             nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(512, 256),
+            nn.Linear(512, 128),  # Output dimension cho Contrastive
         )
 
-        # Classifier cuối cùng: Từ vector 256 chiều -> ra xác suất (logit)
-        self.classifier = nn.Linear(256, 1)
+        # Classifier: Dự đoán xác suất bệnh từ Concept Vector
+        self.classifier = nn.Linear(self.embedding_dim, 1)
 
     def forward(self, x):
-        # x shape: [Batch, 3, 384, 384]
+        # x: [Batch, 1, 384, 384] (Grayscale)
+        # Backbone thường cần 3 kênh màu, ta repeat channel 1 lên 3 lần
+        if x.size(1) == 1:
+            x = x.repeat(1, 3, 1, 1)
 
-        # --- BƯỚC 1: BACKBONE FEATURE EXTRACTION ---
-        outputs = self.backbone.vision_model(x, output_hidden_states=True)
-        last_hidden_state = outputs.last_hidden_state  # [Batch, Seq_Len, Hidden]
+        # 1. Spatial Features: [B, C, H, W] (Ví dụ: [B, 2048, 12, 12])
+        features = self.backbone(x)[0]
+        B, C, H, W = features.shape
 
-        # Reshape từ Sequence (L) sang Spatial (H, W)
-        # Với ảnh 384x384, patch 16 -> grid 24x24
-        B, L, C = last_hidden_state.shape
-        H = W = int(L**0.5)
+        # 2. Attention Maps (Logits): [B, Num_Classes, H, W]
+        attn_logits = self.concept_head(features)
 
-        # Features map F: [B, C, H, W]
-        features = last_hidden_state.permute(0, 2, 1).reshape(B, C, H, W)
+        # Chuyển thành trọng số (Softmax trên không gian H,W để tìm vùng quan trọng nhất)
+        # [B, K, H*W]
+        attn_weights = F.softmax(attn_logits.view(B, -1, H * W), dim=-1)
+        attn_maps = attn_weights.view(B, -1, H, W)
 
-        # --- BƯỚC 2: CONCEPT ATTENTION MAPS ---
-        # Tự học vùng quan trọng cho từng bệnh
-        # attention_logits: [B, Num_Classes, H, W]
-        attention_logits = self.concept_head(features)
+        # 3. Concept Aggregation (Weighted Average Pooling)
+        # Ta nhân đặc trưng với attention map để lấy ra vector đại diện cho từng bệnh
+        # Features: [B, C, H*W] -> [B, H*W, C] (transpose)
+        features_flat = features.view(B, C, -1).permute(0, 2, 1)
 
-        # Chuyển thành xác suất attention (Softmax over spatial dims hoặc Sigmoid)
-        # Ở đây dùng Spatial Softmax để model tập trung vào vùng đặc trưng nhất
-        B, K, H, W = attention_logits.shape
-        attn_weights = torch.softmax(attention_logits.view(B, K, -1), dim=2).view(
-            B, K, H, W
-        )
+        # Concept Vectors = Attn_Weights x Features
+        # [B, K, H*W] x [B, H*W, C] -> [B, K, C]
+        concept_vectors_raw = torch.bmm(attn_weights, features_flat)
 
-        # --- BƯỚC 3: AGGREGATE CONCEPT VECTORS ---
-        # Tạo vector đại diện cho từng bệnh bằng cách nhân Features với Attention Map của bệnh đó
-        # Features: [B, C, H*W]
-        f_flat = features.view(B, C, -1)
-        # Weights:  [B, K, H*W]
-        a_flat = attn_weights.view(B, K, -1)
+        B, K, C = concept_vectors_raw.shape
+        concept_vectors_flat = concept_vectors_raw.view(B * K, C)
 
-        # Concept Vectors V = Weights x Features^T
-        # Concept Vectors: [B, Num_Classes, C]
-        concept_vectors = torch.bmm(a_flat, f_flat.permute(0, 2, 1))
+        # 4. Projection & Classification
+        # [B, K, C] -> [B, K, Embedding_Dim]
+        concept_embeddings = self.projector(concept_vectors_flat)
 
-        # Projector & Classify
-        projected_vectors = self.projector(concept_vectors)
-        logits = self.classifier(projected_vectors).squeeze(-1)
+        # Normalize vectors để dùng cho Cosine Similarity Loss/Inference
+        concept_embeddings = concept_embeddings.view(B, K, -1)
 
-        # --- RETURN THÊM projected_vectors ĐỂ TÍNH CONTRASTIVE LOSS ---
+        # Normalize L2
+        concept_embeddings = F.normalize(concept_embeddings, p=2, dim=-1)
+
+        # Classification Logits: [B, K, 1] -> [B, K]
+        logits = self.classifier(concept_embeddings).squeeze(-1)
+
         return {
-            "logits": logits,
-            "attn_maps": attn_weights,
-            "concept_vectors": projected_vectors,  # Dùng cái đã qua projector tốt hơn
+            "logits": logits,  # [B, K] - Dùng cho Cls Loss
+            "attn_maps": attn_logits,  # [B, K, H, W] - Dùng cho Seg/Bbox Loss (lưu ý trả về logits chưa qua softmax cho loss)
+            "concept_vectors": concept_embeddings,  # [B, K, Emb_Dim] - Dùng cho Cosine/Contrastive
         }

@@ -1,166 +1,137 @@
-import os
-import cv2
-import torch
-import pydicom
 import pandas as pd
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
-import matplotlib.pyplot as plt
+import torch
+from torch.utils.data import Dataset
+import os
+import cv2  # Thay pydicom bằng opencv
+from PIL import Image
 
 
-# 1. Danh sách bệnh
-TARGET_CLASSES = [
-    "Aortic enlargement",
-    "Atelectasis",
-    "Calcification",
-    "Cardiomegaly",
-    "Clavicle fracture",
-    "Consolidation",
-    "Edema",
-    "Emphysema",
-    "Enlarged PA",
-    "Interstitial lung disease",
-    "Infiltration",
-    "Lung Opacity",
-    "Lung Cavity",
-    "Lung cyst",
-    "Mediastinal shift",
-    "Nodule/Mass",
-    "Pleural effusion",
-    "Pleural thickening",
-    "Pneumothorax",
-    "Pulmonary fibrosis",
-    "Rib fracture",
-    "Other lesion",
-    "COPD",
-    "Lung Tumor",
-    "Pneumonia",
-    "Tuberculosis",
-]
-
-CLASS_TO_IDX = {name: idx for idx, name in enumerate(TARGET_CLASSES)}
-
-
-class VinDrClassifierDataset(Dataset):
-    def __init__(
-        self, csv_file, image_dir, transform=None, class_map=CLASS_TO_IDX, img_size=384
-    ):
-        self.image_dir = image_dir
-        self.transform = transform
-        self.class_map = class_map
-        self.img_size = img_size  # Cần biết kích thước đích để scale bbox
-
+class VINDRCXRDataset(Dataset):
+    def __init__(self, csv_file, image_dir, num_classes, target_size, map_size):
+        """
+        Khởi tạo Dataset cho file PNG.
+        """
         # Đọc CSV
-        df = pd.read_csv(csv_file)
+        self.data_df = pd.read_csv(csv_file)
+        self.image_dir = image_dir
+        self.target_size = target_size
+        self.map_size = map_size
 
-        # Lọc bỏ class "No finding" khỏi danh sách bbox cần vẽ (nếu muốn)
-        # Nhưng vẫn giữ dòng đó để biết ảnh đó là ảnh bình thường
+        # 1. Chuẩn bị mapping Class ID
+        self.image_ids = self.data_df["image_id"].unique().tolist()
+        class_mapping_data = self.data_df[["class_name", "class_id"]].drop_duplicates()
 
-        # Group dữ liệu: Gom cả labels và bboxes
-        # Ta tạo dict để lưu: image_id -> list các annotations
-        self.annotations = (
-            df.groupby("image_id")
-            .apply(
-                lambda x: x[["class_name", "x_min", "y_min", "x_max", "y_max"]].to_dict(
-                    "records"
-                )
-            )
-            .to_dict()
+        self.class_to_id = {}
+        pathology_class_count = 0
+        for _, row in class_mapping_data.iterrows():
+            name = row["class_name"]
+            original_id = row["class_id"]
+            # Chỉ lấy 14 bệnh lý (ID 0-13)
+            if name.lower() != "no finding" and 0 <= original_id <= 13:
+                self.class_to_id[name] = int(original_id)
+                pathology_class_count += 1
+
+        self.num_classes = pathology_class_count
+
+        # 2. Tối ưu hóa việc tra cứu kích thước gốc (Nếu có trong CSV)
+        # Tạo dictionary để tra cứu nhanh width/height nếu CSV có cột này
+        self.has_dim_info = (
+            "width" in self.data_df.columns and "height" in self.data_df.columns
         )
 
-        self.image_ids = list(self.annotations.keys())
+        if self.has_dim_info:
+            # BƯỚC QUAN TRỌNG:
+            # 1. Chỉ lấy 3 cột cần thiết
+            # 2. Loại bỏ các dòng trùng image_id (để mỗi ảnh chỉ còn 1 dòng duy nhất chứa width/height)
+            unique_dims = self.data_df[["image_id", "width", "height"]].drop_duplicates(
+                subset=["image_id"]
+            )
+
+            # 3. Giờ thì set_index sẽ an toàn và to_dict sẽ nhanh hơn nhiều
+            self.dim_lookup = unique_dims.set_index("image_id").to_dict("index")
+        else:
+            self.dim_lookup = {}
 
     def __len__(self):
         return len(self.image_ids)
 
-    def read_dicom(self, path):
-        """Hàm đọc và xử lý ảnh DICOM"""
-        try:
-            dcm = pydicom.dcmread(path)
-            image = dcm.pixel_array
-
-            # Xử lý Photometric Interpretation (Đảo màu nếu cần)
-            # Một số ảnh DICOM lưu dạng MONOCHROME1 (đen là trắng), cần đảo lại
-            if hasattr(dcm, "PhotometricInterpretation"):
-                if dcm.PhotometricInterpretation == "MONOCHROME1":
-                    image = np.amax(image) - image
-
-            # Chuẩn hóa về khoảng 0-255 (uint8)
-            # Vì DICOM thường là 12-bit hoặc 14-bit
-            image = image - np.min(image)
-            image = image / np.max(image)
-            image = (image * 255).astype(np.uint8)
-
-            # Chuyển từ 1 kênh (Grayscale) sang 3 kênh (RGB) để khớp với input của Model
-            image = np.stack([image] * 3, axis=-1)
-
-            return image
-        except Exception as e:
-            print(f"Lỗi đọc DICOM {path}: {e}")
-            # Trả về ảnh đen nếu lỗi
-            return np.zeros((512, 512, 3), dtype=np.uint8)
-
     def __getitem__(self, idx):
-        img_id = self.image_ids[idx]
+        image_id = self.image_ids[idx]
 
-        # 1. Đọc ảnh (Dùng hàm read_dicom hoặc cv2 như cũ)
-        # Giả sử ta có biến 'image' (H_orig, W_orig, 3)
-        img_id = self.image_ids[idx]
+        # Lấy các dòng annotation của ảnh này
+        img_annotations = self.data_df[self.data_df["image_id"] == image_id]
 
-        # --- SỬA ĐỔI ĐƯỜNG DẪN ---
-        # Kiểm tra file có đuôi .dicom hay không có đuôi
-        dicom_path = os.path.join(self.image_dir, f"{img_id}.dicom")
-        if not os.path.exists(dicom_path):
-            # Thử trường hợp file không có đuôi (một số dataset Kaggle như vậy)
-            dicom_path = os.path.join(self.image_dir, f"{img_id}")
+        # --- 1. Load Ảnh PNG (Thay thế phần DICOM) ---
+        img_path = os.path.join(self.image_dir, f"{image_id}.png")
 
-        # Đọc ảnh bằng hàm custom
-        image = self.read_dicom(dicom_path)
+        # Đọc ảnh grayscale (để khớp với logic cũ là 1 channel)
+        # Nếu muốn dùng 3 kênh màu RGB thì bỏ flag cv2.IMREAD_GRAYSCALE
+        image = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
 
-        h_orig, w_orig = image.shape[:2]
+        if image is None:  # Xử lý lỗi nếu không đọc được ảnh
+            return None, None, None, image_id
 
-        # 2. Tạo Mask và Label Vector
-        target_label = np.zeros(len(self.class_map), dtype=np.float32)
-        target_mask = np.zeros(
-            (len(self.class_map), self.img_size, self.img_size), dtype=np.float32
+        # --- 2. Xác định Kích thước Gốc (QUAN TRỌNG ĐỂ TÍNH BBOX) ---
+        # Nếu CSV có thông tin width/height gốc, ta ưu tiên dùng nó
+        # (Vì nếu ảnh PNG đã bị resize trước đó, image.shape sẽ sai lệch với bbox gốc)
+        if self.has_dim_info:
+            dims = self.dim_lookup[image_id]
+            original_w = dims["width"]
+            original_h = dims["height"]
+        else:
+            # Nếu CSV không có, đành phải dùng kích thước thật của ảnh vừa đọc
+            # Lưu ý: Nếu ảnh này đã bị resize (vd 512x512) thì bbox sẽ bị tính sai!
+            original_h, original_w = image.shape[:2]
+
+        if original_w <= 0 or original_h <= 0:
+            return None, None, None, image_id
+
+        # --- 3. Resize & Normalize ---
+        # Resize về target_size (ví dụ 384x384)
+        image = cv2.resize(image, (self.target_size, self.target_size))
+
+        # Normalize 0-255 -> 0.0-1.0
+        image = image.astype(np.float32) / 255.0
+
+        # Chuyển sang Tensor [1, H, W]
+        image = torch.from_numpy(image).unsqueeze(0)
+
+        # --- 4. Tạo Label & Attention Map (Logic giữ nguyên) ---
+        cls_label = torch.zeros(self.num_classes, dtype=torch.float32)
+        present_classes = img_annotations["class_name"].unique()
+
+        for cls_name in present_classes:
+            cls_id = self.class_to_id.get(cls_name)
+            if cls_id is not None:
+                cls_label[cls_id] = 1.0
+
+        # Tạo Map
+        attn_maps = torch.zeros(
+            (self.num_classes, self.map_size, self.map_size), dtype=torch.float32
         )
 
-        anns = self.annotations[img_id]
+        for _, row in img_annotations.iterrows():
+            cls_name = row["class_name"]
+            cls_id = self.class_to_id.get(cls_name)
 
-        for ann in anns:
-            class_name = ann["class_name"]
-            if class_name in self.class_map:
-                class_idx = self.class_map[class_name]
+            if cls_id is None:
+                continue
+            if pd.isna(row[["x_min", "y_min", "x_max", "y_max"]]).any():
+                continue
 
-                # a. Cập nhật Label Classification
-                target_label[class_idx] = 1.0
+            # Tính tọa độ trên Map 12x12 dựa trên tỷ lệ với kích thước gốc
+            x_min = int(row["x_min"] * (self.map_size / original_w))
+            y_min = int(row["y_min"] * (self.map_size / original_h))
+            x_max = int(row["x_max"] * (self.map_size / original_w))
+            y_max = int(row["y_max"] * (self.map_size / original_h))
 
-                # b. Cập nhật Mask (Nếu có bbox hợp lệ)
-                # Kiểm tra xem có bbox không (vì VinDr có giá trị NaN cho class No finding)
-                if not np.isnan(ann["x_min"]):
-                    # Scale bbox từ kích thước gốc về kích thước 384x384
-                    scale_x = self.img_size / w_orig
-                    scale_y = self.img_size / h_orig
+            x_min = max(0, x_min)
+            y_min = max(0, y_min)
+            x_max = min(self.map_size, x_max)
+            y_max = min(self.map_size, y_max)
 
-                    x1 = int(ann["x_min"] * scale_x)
-                    y1 = int(ann["y_min"] * scale_y)
-                    x2 = int(ann["x_max"] * scale_x)
-                    y2 = int(ann["y_max"] * scale_y)
+            if x_max > x_min and y_max > y_min:
+                attn_maps[cls_id, y_min:y_max, x_min:x_max] = 1.0
 
-                    # Vẽ hình chữ nhật màu trắng (1.0) lên mask của class đó
-                    # Đảm bảo toạ độ không vượt quá img_size
-                    x1, y1 = max(0, x1), max(0, y1)
-                    x2, y2 = min(self.img_size, x2), min(self.img_size, y2)
-
-                    target_mask[class_idx, y1:y2, x1:x2] = 1.0
-
-        # 3. Transform (Resize ảnh)
-        # Lưu ý: Vì ta đã tự vẽ mask theo kích thước img_size,
-        # nên transform chỉ cần Resize ảnh về img_size là khớp.
-        if self.transform:
-            augmented = self.transform(image=image)
-            image = augmented["image"]
-
-        return image, torch.tensor(target_label), torch.tensor(target_mask)
+        return image, cls_label, attn_maps, image_id
