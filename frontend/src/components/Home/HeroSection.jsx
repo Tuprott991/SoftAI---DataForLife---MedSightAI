@@ -37,32 +37,6 @@ export const HeroSection = () => {
                         Trao quyền cho bác sĩ và sinh viên với các công cụ chẩn đoán tiên tiến và thông tin y khoa.
                     </p>
 
-                    {/* Stats with Animated Counters */}
-                    <div className="flex flex-wrap justify-center gap-8 lg:gap-12 mb-12">
-                        <AnimatedCounter
-                            end={99.2}
-                            decimals={1}
-                            suffix="%"
-                            duration={2500}
-                            icon={Sparkles}
-                            label="Độ Chính Xác Chẩn Đoán"
-                        />
-                        <AnimatedCounter
-                            end={10000}
-                            suffix="+"
-                            duration={2500}
-                            icon={Users}
-                            label="Chuyên Gia Y Tế"
-                        />
-                        <AnimatedCounter
-                            end={50000}
-                            suffix="+"
-                            duration={2500}
-                            icon={TrendingUp}
-                            label="Ca Bệnh Đã Phân Tích"
-                        />
-                    </div>
-
                     {/* CTA Buttons */}
                     <div className="flex flex-wrap gap-4 justify-center">
                         <Link
