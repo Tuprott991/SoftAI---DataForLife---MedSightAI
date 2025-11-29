@@ -217,7 +217,15 @@ export default function HistoryScreen() {
           </View>
           <TouchableOpacity
             style={styles.signOutBtn}
-            onPress={() => signOutUser()}
+            onPress={async () => {
+              try {
+                console.log('HistoryScreen: Logout button pressed');
+                await signOutUser();
+                console.log('HistoryScreen: signOutUser completed');
+              } catch (err) {
+                console.error('HistoryScreen: Logout error:', err);
+              }
+            }}
           >
             <Text style={styles.signOutText}>Đăng xuất</Text>
           </TouchableOpacity>

@@ -9,9 +9,11 @@ import {
   TextInput as RNTextInput,
 } from 'react-native';
 import { TextInput, Button, Text, ActivityIndicator, HelperText } from 'react-native-paper';
+import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 
-export default function LoginScreen({ navigation }: any) {
+export default function LoginScreen() {
+  const router = useRouter();
   const { sendOTP, verifyOTP, isLoading, error, setError } = useAuth();
   
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -34,11 +36,13 @@ export default function LoginScreen({ navigation }: any) {
 
   const handleSendOTP = async () => {
     try {
+      console.log('LoginScreen: handleSendOTP called with phone:', phoneNumber);
       setError(null);
       await sendOTP(phoneNumber);
+      console.log('LoginScreen: OTP sent successfully, moving to OTP step');
       setStep('otp');
     } catch (err) {
-      console.error('Error sending OTP:', err);
+      console.error('LoginScreen: Error sending OTP:', err);
     }
   };
 
@@ -68,16 +72,20 @@ export default function LoginScreen({ navigation }: any) {
 
   const handleVerifyOTP = async () => {
     try {
+      console.log('LoginScreen: handleVerifyOTP called');
       setError(null);
       const otpCode = otp.join('');
       if (otpCode.length !== 6) {
+        console.warn('LoginScreen: Invalid OTP length:', otpCode.length);
         setError('Please enter 6-digit OTP');
         return;
       }
+      console.log('LoginScreen: Verifying OTP code');
       await verifyOTP(otpCode);
+      console.log('LoginScreen: OTP verified successfully');
       // Navigation will be handled by the auth state change
     } catch (err) {
-      console.error('Error verifying OTP:', err);
+      console.error('LoginScreen: Error verifying OTP:', err);
     }
   };
 
@@ -145,17 +153,11 @@ export default function LoginScreen({ navigation }: any) {
                 {isLoading ? 'Đang gửi...' : 'Gửi mã OTP'}
               </Button>
 
-              {/* Sign Up Link */}
+              {/* Info Text */}
               <View style={styles.footer}>
-                <Text variant="bodyMedium">Chưa có tài khoản? </Text>
-                <TouchableOpacity onPress={() => navigation?.navigate('signup')}>
-                  <Text
-                    variant="bodyMedium"
-                    style={styles.linkText}
-                  >
-                    Đăng ký
-                  </Text>
-                </TouchableOpacity>
+                <Text variant="bodySmall" style={styles.infoFooter}>
+                  Nhập số điện thoại để bắt đầu. Nếu tài khoản chưa tồn tại, nó sẽ được tạo tự động.
+                </Text>
               </View>
             </>
           ) : (
@@ -329,6 +331,11 @@ const styles = StyleSheet.create({
     color: '#14B8A6',
     fontWeight: '600',
     textDecorationLine: 'underline',
+  },
+  infoFooter: {
+    color: '#757575',
+    textAlign: 'center',
+    marginTop: 16,
   },
   errorBox: {
     backgroundColor: '#DC2626',
