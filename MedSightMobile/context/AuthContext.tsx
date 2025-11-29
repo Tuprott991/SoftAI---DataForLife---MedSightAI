@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { auth, db, app } from '@/services/firebase';
+import { signOut, onAuthStateChanged, PhoneAuthProvider, signInWithCredential } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
-// Mock storage for users (simulates Firestore)
+// Mock storage for users (simulates Firestore for offline/testing)
 const mockUserDatabase: Record<string, any> = {};
 
 // Test phone numbers and OTP configuration
-const TEST_PHONES = ['+84 945 876 079', '+1 650-555-1234'];
+const TEST_PHONES = ['+16505551234', '0999999999'];
 const TEST_OTP = '123456';
 
 export interface AuthUser {
@@ -32,10 +35,10 @@ interface AuthContextType {
   isNewUser: boolean;
   phoneNumber: string;
   setPhoneNumber: (phone: string) => void;
-  verificationId: any;
-  setVerificationId: (id: any) => void;
-  sendOTP: (phoneNumber: string) => Promise<void>;
-  verifyOTP: (otp: string) => Promise<void>;
+  verificationId: string | null;
+  setVerificationId: (id: string | null) => void;
+  sendOTP: (phoneNumber: string, appVerifier: any) => Promise<string>;
+  verifyOTP: (otp: string) => Promise<any>;
   signOutUser: () => Promise<void>;
   updateUserProfile: (profile: Partial<UserProfile>) => Promise<void>;
   error: string | null;
@@ -50,24 +53,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
   const [isNewUser, setIsNewUser] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [verificationId, setVerificationId] = useState<any>(null);
+  const [verificationId, setVerificationId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Check if user exists in mock database (simulates Firestore)
+  // Check if user exists in Firestore (with mock fallback)
   const checkUserExists = async (uid: string): Promise<boolean> => {
     try {
       console.log('Auth: Checking if user exists, UID:', uid);
       
+      try {
+        // Try to get from Firestore
+        const userDocRef = doc(db, 'users', uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (userDoc.exists()) {
+          console.log('Auth: User found in Firestore');
+          setUserProfile(userDoc.data() as UserProfile);
+          setIsNewUser(false);
+          return true;
+        }
+      } catch (firestoreErr) {
+        console.log('Auth: Firestore unavailable, checking mock database');
+      }
+      
+      // Fallback to mock database
       if (mockUserDatabase[uid]) {
         console.log('Auth: User found in mock database');
         setUserProfile(mockUserDatabase[uid]);
         setIsNewUser(false);
         return true;
-      } else {
-        console.log('Auth: User NOT found in mock database - new user');
-        setIsNewUser(true);
-        return false;
       }
+      
+      console.log('Auth: User NOT found - new user');
+      setIsNewUser(true);
+      return false;
     } catch (err) {
       console.error('Auth: Error checking user:', err);
       return false;
@@ -76,108 +95,186 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     const initializeAuthListener = async () => {
-      try {
-        // Clear any cached user on app startup (mock)
-        console.log('Auth: Cleared cached sessions on startup');
-      } catch (err) {
-        console.log('Auth: No active session to clear');
-      }
-      
-      // Simulate auth state check
-      setIsLoading(false);
-      console.log('Auth: onAuthStateChanged listener initialized (mock)');
+      // Listen to auth state changes
+      const unsubscribe = onAuthStateChanged(auth, async (currentUser: any) => {
+        console.log('Auth state changed:', currentUser ? `User: ${currentUser.uid}` : 'No user');
+        
+        if (currentUser) {
+          const authUser: AuthUser = {
+            uid: currentUser.uid,
+            phoneNumber: currentUser.phoneNumber,
+            email: currentUser.email,
+            displayName: currentUser.displayName,
+          };
+          setUser(authUser);
+          
+          // Check if user exists in Firestore
+          await checkUserExists(currentUser.uid);
+        } else {
+          setUser(null);
+          setUserProfile(null);
+          setIsNewUser(false);
+        }
+        setIsLoading(false);
+      });
+
+      return unsubscribe;
     };
 
-    initializeAuthListener();
+    let unsubscribe: any;
+    initializeAuthListener().then((cleanup) => {
+      unsubscribe = cleanup;
+      console.log('Auth: onAuthStateChanged listener attached');
+    });
+
+    return () => {
+      console.log('Auth: Cleaning up auth listener');
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
-  const sendOTP = async (phone: string) => {
+  const sendOTP = async (phone: string, appVerifier: any): Promise<string> => {
     try {
       console.log('Auth: sendOTP called with phone:', phone);
+      
       setError(null);
       setIsLoading(true);
       
-      // Format phone number
-      const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
-      console.log('Auth: Formatted phone:', formattedPhone);
-      
-      // Check if this is a test phone number
-      const normalizedPhone = formattedPhone.replace(/\s/g, '');
-      const normalizedTestPhones = TEST_PHONES.map(p => p.replace(/\s/g, ''));
-      const isTestPhone = normalizedTestPhones.includes(normalizedPhone);
-      
-      if (isTestPhone) {
-        console.log('Auth: Test phone detected, using mock OTP verification');
-        // For test phones, use mock verification
-        const mockVerificationId = 'mock-verification-' + Date.now();
-        console.log('Auth: Mock verification ID generated:', mockVerificationId);
-        setVerificationId(mockVerificationId);
-        setPhoneNumber(formattedPhone);
-        setIsLoading(false);
-        return;
+      // Format phone number: remove leading 0, add +84
+      let formattedPhone = phone.trim();
+      if (formattedPhone.startsWith('0')) {
+        formattedPhone = '+84' + formattedPhone.slice(1);
+      } else if (!formattedPhone.startsWith('+')) {
+        formattedPhone = '+' + formattedPhone;
       }
       
-      // For production, real phone numbers would need backend OTP service
-      console.log('Auth: Real phone number - using test OTP 123456 for demo');
-      const mockVerificationId = 'mock-verification-' + Date.now();
-      setVerificationId(mockVerificationId);
+      console.log('Auth: Formatted phone:', formattedPhone);
       setPhoneNumber(formattedPhone);
+      
+      // If ReCAPTCHA not available, use mock OTP for development
+      if (!appVerifier) {
+        console.warn('⚠️  ReCAPTCHA not available - using mock OTP verification for development');
+        console.log('Auth: Test phone numbers: +84 945 876 079, +1 650-555-1234');
+        console.log('Auth: Test OTP: 123456');
+        
+        const mockVerificationId = 'mock-verification-' + Date.now();
+        setVerificationId(mockVerificationId);
+        setIsLoading(false);
+        
+        return mockVerificationId;
+      }
+      
+      // Call Firebase to send OTP via SMS
+      const phoneProvider = new PhoneAuthProvider(auth);
+      console.log('Auth: Sending OTP with Firebase PhoneAuthProvider...');
+      
+      const verificationId = await phoneProvider.verifyPhoneNumber(
+        formattedPhone,
+        appVerifier
+      );
+      
+      console.log('Auth: OTP sent successfully! Verification ID:', verificationId);
+      setVerificationId(verificationId);
       setIsLoading(false);
+      
+      return verificationId;
       
     } catch (err: any) {
       console.error('Auth: sendOTP error:', err);
-      setError(err.message || 'Failed to send OTP');
+      console.error('Auth: Error code:', err.code);
+      console.error('Auth: Error message:', err.message);
+      
+      // Provide user-friendly error messages
+      let errorMessage = err.message || 'Failed to send OTP';
+      if (err.code === 'auth/invalid-phone-number') {
+        errorMessage = 'Invalid phone number format';
+      } else if (err.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many requests. Please try again later.';
+      } else if (err.code === 'auth/operation-not-supported-in-this-environment') {
+        errorMessage = 'Phone authentication not supported in this environment';
+      }
+      
+      setError(errorMessage);
       setIsLoading(false);
       throw err;
     }
   };
 
-  const verifyOTP = async (otp: string) => {
+  const verifyOTP = async (otp: string): Promise<any> => {
     try {
-      console.log('Auth: verifyOTP called with OTP:', otp);
+      console.log('Auth: verifyOTP called with OTP length:', otp.length);
       setError(null);
       setIsLoading(true);
 
       if (!verificationId) {
-        console.error('Auth: Verification ID not found');
-        throw new Error('Verification ID not found');
+        throw new Error('Verification ID not found. Please send OTP first.');
       }
 
-      // Check if this is a mock verification (test phone)
-      if (verificationId.startsWith('mock-verification-')) {
-        console.log('Auth: Mock verification detected');
+      // Check if this is a mock verification ID (development mode)
+      if (verificationId.startsWith('mock-')) {
+        console.warn('⚠️  Using mock OTP verification');
         
-        // For test phones, correct OTP is 123456
-        if (otp === TEST_OTP) {
-          console.log('Auth: Test OTP verified successfully');
-          
-          // Create a mock user with the test phone
-          const testUid = 'test-user-' + Date.now();
-          setUser({
-            uid: testUid,
-            phoneNumber: phoneNumber,
-            email: null,
-            displayName: null,
-          });
-          
-          // Check if user exists in Firestore (they won't on first login)
-          const exists = await checkUserExists(testUid);
-          
-          console.log('Auth: Mock user created, OTP verification complete, isNewUser =', !exists);
-          setIsLoading(false);
-          return;
-        } else {
-          console.warn('Auth: Incorrect test OTP provided. Expected:', TEST_OTP, 'Got:', otp);
-          setError(`Incorrect OTP. For test, use: ${TEST_OTP}`);
+        // Accept test OTP
+        if (otp !== TEST_OTP && otp !== '123456') {
+          setError('Invalid OTP. Test OTP: 123456');
           setIsLoading(false);
           throw new Error('Invalid OTP');
         }
+        
+        // Create mock user
+        const mockUid = 'mock-user-' + Date.now();
+        const authUser: AuthUser = {
+          uid: mockUid,
+          phoneNumber: phoneNumber,
+          email: null,
+          displayName: null,
+        };
+        
+        setUser(authUser);
+        mockUserDatabase[mockUid] = {
+          uid: mockUid,
+          phoneNumber: phoneNumber,
+        };
+        
+        await checkUserExists(mockUid);
+        setIsLoading(false);
+        
+        return { uid: mockUid };
       }
 
+      // Real Firebase verification
+      const credential = PhoneAuthProvider.credential(verificationId, otp);
+      const userCredential = await signInWithCredential(auth, credential);
+      console.log('Auth: User signed in successfully:', userCredential.user.uid);
+      
+      // Create auth user object
+      const authUser: AuthUser = {
+        uid: userCredential.user.uid,
+        phoneNumber: userCredential.user.phoneNumber,
+        email: userCredential.user.email,
+        displayName: userCredential.user.displayName,
+      };
+      
+      setUser(authUser);
+      
+      // Check if user exists in Firestore
+      await checkUserExists(userCredential.user.uid);
+      
       setIsLoading(false);
+      return userCredential.user;
     } catch (err: any) {
       console.error('Auth: verifyOTP error:', err);
-      setError(err.message || 'Invalid OTP');
+      console.error('Auth: Error code:', err.code);
+      
+      // Provide user-friendly error messages
+      let errorMessage = err.message || 'Invalid OTP';
+      if (err.code === 'auth/invalid-verification-code') {
+        errorMessage = 'Invalid verification code. Please try again.';
+      } else if (err.code === 'auth/code-expired') {
+        errorMessage = 'Verification code has expired. Please request a new one.';
+      }
+      
+      setError(errorMessage);
       setIsLoading(false);
       throw err;
     }
@@ -199,9 +296,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         updatedAt: new Date().toISOString(),
       };
 
-      // Save to mock database (simulates Firestore)
-      mockUserDatabase[user.uid] = updatedProfile;
-      console.log('Auth: User profile saved to mock database');
+      try {
+        // Try to save to Firestore
+        const userDocRef = doc(db, 'users', user.uid);
+        await setDoc(userDocRef, updatedProfile);
+        console.log('Auth: User profile saved to Firestore');
+      } catch (firestoreErr) {
+        console.log('Auth: Firestore unavailable, saving to mock database');
+        mockUserDatabase[user.uid] = updatedProfile;
+      }
       
       setUserProfile(updatedProfile);
       setIsNewUser(false);
@@ -216,8 +319,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       console.log('Auth: signOutUser called');
       setError(null);
-      // Mock sign out - just clear state
-      console.log('Auth: Mock sign out successful');
+      await signOut(auth);
+      console.log('Auth: Firebase signOut successful');
       setUser(null);
       setUserProfile(null);
       setPhoneNumber('');

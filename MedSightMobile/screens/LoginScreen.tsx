@@ -7,10 +7,25 @@ import {
   Platform,
   TouchableOpacity,
   TextInput as RNTextInput,
+  Alert,
 } from 'react-native';
 import { TextInput, Button, Text, ActivityIndicator, HelperText } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
+import { app } from '@/services/firebase';
+
+// Safely import ReCAPTCHA with fallback
+let FirebaseRecaptchaVerifierModal: any = null;
+let ReCAPTCHAAvailable = true;
+try {
+  const module = require('expo-firebase-recaptcha');
+  FirebaseRecaptchaVerifierModal = module.FirebaseRecaptchaVerifierModal;
+} catch (err) {
+  console.warn('⚠️  ReCAPTCHA not available, using fallback verification');
+  ReCAPTCHAAvailable = false;
+  // Fallback: render nothing
+  FirebaseRecaptchaVerifierModal = () => null;
+}
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -21,6 +36,7 @@ export default function LoginScreen() {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isPhoneValid, setIsPhoneValid] = useState(false);
   const otpInputRefs = useRef<RNTextInput[]>([]);
+  const recaptchaVerifier = useRef(null);
 
   // Validate phone number
   const validatePhone = (phone: string) => {
@@ -37,12 +53,28 @@ export default function LoginScreen() {
   const handleSendOTP = async () => {
     try {
       console.log('LoginScreen: handleSendOTP called with phone:', phoneNumber);
+      
+      // Check if ReCAPTCHA is available
+      if (ReCAPTCHAAvailable && !recaptchaVerifier.current) {
+        Alert.alert('Error', 'ReCAPTCHA not ready. Please wait...');
+        return;
+      }
+      
       setError(null);
-      await sendOTP(phoneNumber);
+      console.log('LoginScreen: Sending OTP...');
+      
+      // Pass recaptchaVerifier if available, otherwise pass null for fallback
+      const verifier = ReCAPTCHAAvailable ? recaptchaVerifier.current : null;
+      await sendOTP(phoneNumber, verifier);
+      
       console.log('LoginScreen: OTP sent successfully, moving to OTP step');
       setStep('otp');
-    } catch (err) {
+      Alert.alert('Thành công', 'Mã OTP đã được gửi!');
+    } catch (err: any) {
       console.error('LoginScreen: Error sending OTP:', err);
+      const errorMsg = err.message || 'Không thể gửi mã OTP';
+      setError(errorMsg);
+      Alert.alert('Lỗi', errorMsg);
     }
   };
 
@@ -94,6 +126,12 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
+      {/* ReCAPTCHA Verifier Modal - REQUIRED for Firebase Phone Auth */}
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaVerifier}
+        firebaseConfig={app.options}
+      />
+      
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
