@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Sparkles, RefreshCw } from 'lucide-react';
+import { Sparkles, RefreshCw, Bot, FileText, Send, X } from 'lucide-react';
 import { patientsData } from '../constants/patients';
 import { medicalImagesGroups, generateAnalysisData, getFindingImagePath } from '../constants/medicalData';
+import { generatePatientReport } from '../constants/reportData';
 import {
     ImageListGrouped,
     ImageViewer
 } from '../components/DoctorDetail';
 import { AnalysisTab, RecommendationsTab } from '../components/DoctorDetail/AnalysisTab';
+import { ReportPDF } from '../components/DoctorDetail/ReportPDF';
 import { useSidebar } from '../components/layout';
 
 export const DoctorDetail = () => {
@@ -27,18 +29,49 @@ export const DoctorDetail = () => {
     const [selectedImage, setSelectedImage] = useState(patientImageData);
     const [originalImage, setOriginalImage] = useState(patientImageData);
     const [analysisData, setAnalysisData] = useState(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const [selectedFindingIds, setSelectedFindingIds] = useState([]);
+    const [showChatbot, setShowChatbot] = useState(false);
+    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [reportData, setReportData] = useState(null);
 
     const handleAIAnalyze = () => {
-        // TODO: Replace with actual API call
-        // For now, generate mock analysis data
-        const data = patient ? generateAnalysisData(patient.diagnosis, patient.image) : null;
-        setAnalysisData(data);
+        setIsAnalyzing(true);
+        
+        // Random delay từ 3-6 giây
+        const randomDelay = Math.floor(Math.random() * (6000 - 3000 + 1)) + 3000;
+        
+        setTimeout(() => {
+            // Generate mock analysis data
+            const data = patient ? generateAnalysisData(patient.diagnosis, patient.image) : null;
+            setAnalysisData(data);
+            setIsAnalyzing(false);
+        }, randomDelay);
     };
 
     const handleFindingSelectionChange = (selectedIds) => {
         setSelectedFindingIds(selectedIds);
+    };
+
+    const handleChatbotToggle = () => {
+        setShowChatbot(!showChatbot);
+    };
+
+    const handleGenerateReport = () => {
+        setIsGeneratingReport(true);
+        
+        // Random delay từ 6-9 giây
+        const randomDelay = Math.floor(Math.random() * (9000 - 6000 + 1)) + 6000;
+        
+        setTimeout(() => {
+            // Generate report data
+            const report = generatePatientReport(patient);
+            setReportData(report);
+            setIsGeneratingReport(false);
+            setShowReportModal(true);
+        }, randomDelay);
     };
 
     const handleUpdateClick = async () => {
@@ -171,22 +204,106 @@ export const DoctorDetail = () => {
                     {/* Right Column - AI Analysis (2/8) */}
                     <div className="lg:col-span-2">
                         <div className="bg-[#1a1a1a] border border-white/10 rounded-xl overflow-hidden h-[calc(100vh-110px)] flex flex-col">
-                            {/* Header with AI Analyze Button */}
+                            {/* Header with Action Buttons */}
                             <div className="px-4 py-3 border-b border-white/10 bg-[#141414] flex items-center justify-between">
                                 <h3 className="text-base font-semibold text-white">Báo Cáo</h3>
-                                {/* AI Analyze Button */}
-                                <button
-                                    onClick={handleAIAnalyze}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all bg-amber-500 text-white shadow-lg shadow-amber-500/50 hover:bg-amber-600 active:scale-95 cursor-pointer"
-                                >
-                                    <Sparkles className="w-3.5 h-3.5" />
-                                    <span className="font-medium">Phân tích</span>
-                                </button>
+                                
+                                {/* Action Buttons */}
+                                <div className="flex items-center gap-2">
+                                    {/* Chatbot Button */}
+                                    <button
+                                        onClick={handleChatbotToggle}
+                                        className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${
+                                            showChatbot 
+                                                ? 'bg-teal-500 text-white' 
+                                                : 'bg-teal-500/20 text-teal-400 border border-teal-500/30 hover:bg-teal-500 hover:text-white'
+                                        } active:scale-95 cursor-pointer`}
+                                        title="Chatbot AI"
+                                    >
+                                        <Bot className="w-4 h-4" />
+                                    </button>
+                                    
+                                    {/* Generate Report Button */}
+                                    <button
+                                        onClick={handleGenerateReport}
+                                        disabled={isGeneratingReport}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all ${
+                                            isGeneratingReport
+                                                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 cursor-not-allowed opacity-50'
+                                                : 'bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500 hover:text-white active:scale-95 cursor-pointer'
+                                        }`}
+                                        title="Sinh báo cáo"
+                                    >
+                                        {isGeneratingReport ? (
+                                            <>
+                                                <div className="w-3.5 h-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                                                <span className="font-medium">Đang tạo...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <FileText className="w-3.5 h-3.5" />
+                                                <span className="font-medium">Sinh báo cáo</span>
+                                            </>
+                                        )}
+                                    </button>
+                                    
+                                    {/* AI Analyze Button */}
+                                    <button
+                                        onClick={handleAIAnalyze}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all bg-amber-500 text-white shadow-lg shadow-amber-500/50 hover:bg-amber-600 active:scale-95 cursor-pointer"
+                                        title="Phân tích AI"
+                                    >
+                                        <Sparkles className="w-3.5 h-3.5" />
+                                        <span className="font-medium">Phân tích</span>
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Scrollable Content */}
                             <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
-                                {analysisData ? (
+                                {showChatbot ? (
+                                    <div className="flex flex-col h-full">
+                                        {/* Chatbot Messages */}
+                                        <div className="flex-1 overflow-y-auto space-y-3 mb-4">
+                                            <div className="flex items-start gap-2">
+                                                <div className="w-8 h-8 rounded-full bg-teal-500 flex items-center justify-center flex-shrink-0">
+                                                    <Bot className="w-4 h-4 text-white" />
+                                                </div>
+                                                <div className="flex-1 bg-white/5 rounded-lg p-3">
+                                                    <p className="text-sm text-gray-300">
+                                                        Xin chào! Tôi là trợ lý AI y khoa. Tôi có thể giúp bạn hiểu rõ hơn về ca bệnh này, giải thích các phát hiện, hoặc trả lời câu hỏi của bạn về chẩn đoán và điều trị.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Chatbot Input */}
+                                        <div className="border-t border-white/10 pt-3">
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Đặt câu hỏi cho AI..."
+                                                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-teal-500"
+                                                />
+                                                <button className="bg-teal-500 text-white rounded-lg px-4 py-2 hover:bg-teal-600 transition-colors">
+                                                    <Send className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : isAnalyzing ? (
+                                    <div className="flex items-center justify-center h-full text-center">
+                                        <div>
+                                            <div className="relative w-16 h-16 mx-auto mb-4">
+                                                <div className="absolute inset-0 border-4 border-amber-500/20 rounded-full"></div>
+                                                <div className="absolute inset-0 border-4 border-transparent border-t-amber-500 rounded-full animate-spin"></div>
+                                                <Sparkles className="w-8 h-8 text-amber-500 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+                                            </div>
+                                            <p className="text-base font-medium text-white mb-1">Đang suy luận...</p>
+                                            <p className="text-sm text-gray-400">AI đang phân tích hình ảnh y tế</p>
+                                        </div>
+                                    </div>
+                                ) : analysisData ? (
                                     <div className="space-y-4">
                                         <AnalysisTab
                                             findings={analysisData.findings}
@@ -217,6 +334,37 @@ export const DoctorDetail = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Report Modal */}
+            {showReportModal && reportData && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white border border-gray-200 rounded-xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
+                                    <FileText className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold text-gray-800">Báo Cáo Chẩn Đoán Hình Ảnh</h3>
+                                    <p className="text-sm text-gray-600">Bệnh nhân: {patient.name}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowReportModal(false)}
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+                        
+                        {/* Modal Content - Scrollable PDF */}
+                        <div className="flex-1 overflow-y-auto p-6">
+                            <ReportPDF reportData={reportData} patient={patient} />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Custom Scrollbar Styles */}
             <style jsx global>{`
