@@ -1,7 +1,7 @@
 import { KeyFindings } from './KeyFindings';
 import { SuspectedDisease } from './SuspectedDisease';
 
-export const AnalysisTab = ({ findings, suspectedDiseases, onFindingClick, onFindingSelectionChange, onUpdateClick, isUpdating, selectedFindingIds }) => {
+export const AnalysisTab = ({ findings, suspectedDiseases, onFindingClick, onFindingSelectionChange, onUpdateClick, isUpdating, selectedFindingIds, selectedFindingId }) => {
     return (
         <div className="space-y-4">
             <SuspectedDisease
@@ -14,6 +14,7 @@ export const AnalysisTab = ({ findings, suspectedDiseases, onFindingClick, onFin
                 findings={findings}
                 onFindingClick={onFindingClick}
                 onFindingSelectionChange={onFindingSelectionChange}
+                selectedFindingId={selectedFindingId}
             />
         </div>
     );

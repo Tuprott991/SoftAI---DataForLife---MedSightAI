@@ -1,15 +1,69 @@
 import { FileText, Download, Printer } from 'lucide-react';
 
-export const ReportPDF = ({ reportData, patient }) => {
+export const ReportPDF = ({ reportData, patient, selectedImage }) => {
     if (!reportData || !patient) return null;
+    
+    // Extract xAI and Original images if available
+    const xaiImage = Array.isArray(selectedImage) && selectedImage.length > 0 ? selectedImage[0] : null;
+    const originalImage = Array.isArray(selectedImage) && selectedImage.length > 1 && selectedImage[1].original 
+        ? selectedImage[1].original.url 
+        : patient.image;
 
     const handlePrint = () => {
         window.print();
     };
 
     const handleDownload = () => {
-        // TODO: Implement PDF download
-        alert('Chức năng tải xuống sẽ được triển khai sau');
+        // Create a temporary container for the report content
+        const printContent = document.getElementById('report-content');
+        if (!printContent) return;
+
+        // Clone the content
+        const clonedContent = printContent.cloneNode(true);
+        
+        // Create a new window for printing to PDF
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('Vui lòng cho phép popup để tải báo cáo');
+            return;
+        }
+
+        // Write the HTML structure
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Báo Cáo Chẩn Đoán - ${patient.name}</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { 
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        background: white;
+                        padding: 20px;
+                    }
+                    @page { size: A4; margin: 15mm; }
+                    @media print {
+                        body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+                    }
+                </style>
+                <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+            </head>
+            <body>
+                ${clonedContent.innerHTML}
+            </body>
+            </html>
+        `);
+        
+        printWindow.document.close();
+        
+        // Wait for content to load, then trigger print dialog
+        setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+            // Close window after printing or canceling
+            setTimeout(() => printWindow.close(), 100);
+        }, 500);
     };
 
     return (
@@ -33,7 +87,7 @@ export const ReportPDF = ({ reportData, patient }) => {
             </div>
 
             {/* PDF Content */}
-            <div className="bg-white p-8 max-w-[210mm] mx-auto shadow-lg">
+            <div id="report-content" className="bg-white p-8 max-w-[210mm] mx-auto shadow-lg">
                 {/* Header - Hospital Info */}
                 <div className="relative mb-6 pb-4">
                     <div className="border-2 border-gray-400 rounded-lg p-8 relative">
@@ -41,7 +95,7 @@ export const ReportPDF = ({ reportData, patient }) => {
                             <span className="text-xs font-semibold text-gray-600 uppercase">Thông tin bệnh viện</span>
                         </div>
                         <div className="text-center mt-2">
-                            <p className="text-sm text-gray-500 italic">Đây là chỗ xem thông tin bệnh viện</p>
+                            <p className="text-sm text-gray-500 italic">Đây là thông tin bệnh viện</p>
                         </div>
                     </div>
                 </div>
@@ -98,7 +152,9 @@ export const ReportPDF = ({ reportData, patient }) => {
                     <div className="space-y-3 text-sm">
                         <div>
                             <span className="font-semibold">MeSH Tags: </span>
-                            <span className="text-gray-700">{reportData.bao_cao_x_quang.MeSH}</span>
+                            <a href="#medical-images" className="text-teal-600 hover:text-teal-700 underline cursor-pointer">
+                                {reportData.bao_cao_x_quang.MeSH}
+                            </a>
                         </div>
 
                         <div>
@@ -131,6 +187,45 @@ export const ReportPDF = ({ reportData, patient }) => {
                     <h3 className="text-base font-semibold text-gray-800 mb-2">Kết luận:</h3>
                     <p className="text-sm text-gray-700 leading-relaxed text-justify">
                         {reportData.bao_cao_x_quang.ket_luan}
+                    </p>
+                </div>
+
+                {/* Medical Images Section */}
+                <div id="medical-images" className="mb-8 page-break-before">
+                    <h2 className="text-lg font-semibold text-gray-800 mb-3 pb-2 border-b border-gray-300">
+                        III. HÌNH ẢNH CHẨN ĐOÁN
+                    </h2>
+                    <div className="grid grid-cols-2 gap-4">
+                        {/* xAI Image */}
+                        {xaiImage && (
+                            <div className="border-2 border-gray-300 rounded-lg p-3">
+                                <div className="text-center mb-2">
+                                    <span className="text-sm font-semibold text-teal-600">xAI - Phân tích AI</span>
+                                </div>
+                                <img 
+                                    src={xaiImage.url} 
+                                    alt="xAI Analysis" 
+                                    className="w-full h-auto object-contain border border-gray-200 rounded"
+                                    style={{ maxHeight: '400px' }}
+                                />
+                            </div>
+                        )}
+                        
+                        {/* Original Image */}
+                        <div className="border-2 border-gray-300 rounded-lg p-3">
+                            <div className="text-center mb-2">
+                                <span className="text-sm font-semibold text-amber-600">Original - Ảnh gốc</span>
+                            </div>
+                            <img 
+                                src={originalImage} 
+                                alt="Original X-Ray" 
+                                className="w-full h-auto object-contain border border-gray-200 rounded"
+                                style={{ maxHeight: '400px' }}
+                            />
+                        </div>
+                    </div>
+                    <p className="text-xs text-gray-500 italic mt-2 text-center">
+                        * Hình ảnh xAI hiển thị vùng phát hiện bất thường được đánh dấu bởi AI
                     </p>
                 </div>
 
@@ -168,6 +263,14 @@ export const ReportPDF = ({ reportData, patient }) => {
 
             {/* Print styles */}
             <style jsx>{`
+                html {
+                    scroll-behavior: smooth;
+                }
+                
+                .page-break-before {
+                    page-break-before: auto;
+                }
+                
                 @media print {
                     @page {
                         size: A4;
@@ -181,6 +284,10 @@ export const ReportPDF = ({ reportData, patient }) => {
                     
                     .print\\:hidden {
                         display: none !important;
+                    }
+                    
+                    .page-break-before {
+                        page-break-before: always;
                     }
                 }
             `}</style>

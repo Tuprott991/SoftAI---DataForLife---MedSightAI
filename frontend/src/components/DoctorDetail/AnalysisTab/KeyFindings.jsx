@@ -39,7 +39,7 @@ const getConfidenceBgColor = (confidence) => {
     return 'bg-emerald-500/40';
 };
 
-export const KeyFindings = ({ findings, onFindingClick, onFindingSelectionChange }) => {
+export const KeyFindings = ({ findings, onFindingClick, onFindingSelectionChange, selectedFindingId }) => {
     const [selectedFindings, setSelectedFindings] = useState(() =>
         findings.reduce((acc, f) => ({ ...acc, [f.id]: true }), {})
     );
@@ -100,7 +100,11 @@ export const KeyFindings = ({ findings, onFindingClick, onFindingSelectionChange
                 {sortedFindings.map((finding) => (
                     <div
                         key={finding.id}
-                        className={`p-2.5 rounded-lg border border-white ${getConfidenceBgColor(finding.confidence)} transition-opacity`}
+                        className={`p-2.5 rounded-lg border transition-all ${
+                            selectedFindingId === finding.id 
+                                ? 'border-teal-400 border-2 bg-teal-500/20 shadow-lg shadow-teal-500/20' 
+                                : `border-white ${getConfidenceBgColor(finding.confidence)}`
+                        }`}
                     >
                         <div className="flex items-start gap-3">
                             <input

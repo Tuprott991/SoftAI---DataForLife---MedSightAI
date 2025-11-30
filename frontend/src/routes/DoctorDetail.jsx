@@ -32,6 +32,7 @@ export const DoctorDetail = () => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const [selectedFindingIds, setSelectedFindingIds] = useState([]);
+    const [selectedFindingId, setSelectedFindingId] = useState(null);
     const [showChatbot, setShowChatbot] = useState(false);
     const [isGeneratingReport, setIsGeneratingReport] = useState(false);
     const [showReportModal, setShowReportModal] = useState(false);
@@ -116,30 +117,39 @@ export const DoctorDetail = () => {
     };
 
     const handleFindingClick = (finding) => {
+        // Set selected finding ID for highlighting
+        setSelectedFindingId(finding.id);
+        
         // Get the image path for this finding
         const findingImagePath = getFindingImagePath(finding.text, patient.image);
 
         if (findingImagePath) {
-            // Create image data for xAI view (left side)
+            // Create xAI image (left side) - AI-enhanced image with finding highlighted
             const xaiImage = {
-                id: `finding-${finding.id}`,
+                id: `xai-${finding.id}`,
                 url: findingImagePath,
                 type: `xAI: ${finding.text}`,
                 imageCode: `XAI-${finding.id}`,
                 modality: "AI-Enhanced"
             };
 
-            // Create prototype image (right side) - use original image
-            const prototypeImage = {
-                id: `prototype-${finding.id}`,
-                url: patient.image,
-                type: "Prototype: Ảnh gốc",
-                imageCode: `PROTO-${finding.id}`,
-                modality: "Original"
+            // Create right side image data with both original and prototype
+            const rightImage = {
+                id: `right-${finding.id}`,
+                original: {
+                    url: patient.image,
+                    type: `Original: Ảnh gốc`,
+                },
+                prototype: {
+                    url: null, // Will be added later
+                    type: `Prototype: Sẽ thêm sau`,
+                },
+                imageCode: `RIGHT-${finding.id}`,
+                modality: "Comparison"
             };
 
             // Update to show both images
-            setSelectedImage([xaiImage, prototypeImage]);
+            setSelectedImage([xaiImage, rightImage]);
         }
     };
 
@@ -313,6 +323,7 @@ export const DoctorDetail = () => {
                                             onUpdateClick={handleUpdateClick}
                                             isUpdating={isUpdating}
                                             selectedFindingIds={selectedFindingIds}
+                                            selectedFindingId={selectedFindingId}
                                         />
                                         <div className="border-t border-white/10 pt-4">
                                             <RecommendationsTab
@@ -360,7 +371,7 @@ export const DoctorDetail = () => {
                         
                         {/* Modal Content - Scrollable PDF */}
                         <div className="flex-1 overflow-y-auto p-6">
-                            <ReportPDF reportData={reportData} patient={patient} />
+                            <ReportPDF reportData={reportData} patient={patient} selectedImage={selectedImage} />
                         </div>
                     </div>
                 </div>

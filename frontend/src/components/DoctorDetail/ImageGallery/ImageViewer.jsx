@@ -18,6 +18,7 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
     const [activeTool, setActiveTool] = useState(null); // 'square', 'circle', 'freehand', 'eraser', 'ruler'
     const [isPanMode, setIsPanMode] = useState(false);
     const [isPrototypeCollapsed, setIsPrototypeCollapsed] = useState(false);
+    const [showPrototype, setShowPrototype] = useState(false); // Toggle between Original and Prototype for right image
     const { isLeftCollapsed, setIsLeftCollapsed } = useSidebar();
     const [comparisonImages, setComparisonImages] = useState(null);
 
@@ -35,6 +36,7 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
     const [editingLabel, setEditingLabel] = useState('');
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [annotationToDelete, setAnnotationToDelete] = useState(null);
+    const [measurementToDelete, setMeasurementToDelete] = useState(null);
     const [isPanning, setIsPanning] = useState(false);
     const [panStart, setPanStart] = useState({ x: 0, y: 0 });
     const imageContainerRef = useRef(null);
@@ -323,6 +325,16 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
         setSelectedAnnotation(null);
     };
 
+    const handleMeasurementClick = (index, e) => {
+        e.stopPropagation();
+        
+        // If eraser is active, delete measurement directly without confirmation
+        if (activeTool === 'eraser') {
+            const newMeasurements = measurements.filter((_, i) => i !== index);
+            setMeasurements(newMeasurements);
+        }
+    };
+
     const handleConfirmDelete = () => {
         if (annotationToDelete !== null) {
             const newAnnotations = annotations.filter((_, i) => i !== annotationToDelete);
@@ -331,11 +343,13 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
         }
         setConfirmDelete(false);
         setAnnotationToDelete(null);
+        setMeasurementToDelete(null);
     };
 
     const handleCancelDelete = () => {
         setConfirmDelete(false);
         setAnnotationToDelete(null);
+        setMeasurementToDelete(null);
     };
 
     // Render measurement line
@@ -356,34 +370,50 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
         const labelX = midX + offsetX;
         const labelY = midY + offsetY;
         
-        // Format distance (assuming 1 pixel = 0.1mm for medical imaging)
-        const distanceMM = (distance * 0.1).toFixed(1);
+        // Format distance (assuming 1 pixel = 0.01cm for medical imaging)
+        const distanceCM = (distance * 0.01).toFixed(2);
         
         return (
-            <g key={`measurement-${index}`}>
-                {/* Line */}
+            <g 
+                key={`measurement-${index}`}
+                onClick={!isTemp ? (e) => handleMeasurementClick(index, e) : undefined}
+                style={{ cursor: activeTool === 'eraser' && !isTemp ? 'pointer' : 'default' }}
+            >
+                {/* Invisible wider line for easier clicking */}
                 <line
                     x1={measurement.start.x}
                     y1={measurement.start.y}
                     x2={measurement.end.x}
                     y2={measurement.end.y}
-                    stroke={isTemp ? '#a855f7' : '#9333ea'}
+                    stroke="transparent"
+                    strokeWidth={20}
+                    strokeLinecap="round"
+                    pointerEvents="stroke"
+                />
+                {/* Visible line */}
+                <line
+                    x1={measurement.start.x}
+                    y1={measurement.start.y}
+                    x2={measurement.end.x}
+                    y2={measurement.end.y}
+                    stroke={isTemp ? '#5eead4' : '#14b8a6'}
                     strokeWidth={2}
                     strokeLinecap="round"
+                    pointerEvents="none"
                 />
                 {/* Start point */}
                 <circle
                     cx={measurement.start.x}
                     cy={measurement.start.y}
                     r={4}
-                    fill={isTemp ? '#a855f7' : '#9333ea'}
+                    fill={isTemp ? '#5eead4' : '#14b8a6'}
                 />
                 {/* End point */}
                 <circle
                     cx={measurement.end.x}
                     cy={measurement.end.y}
                     r={4}
-                    fill={isTemp ? '#a855f7' : '#9333ea'}
+                    fill={isTemp ? '#5eead4' : '#14b8a6'}
                 />
                 {/* Distance label */}
                 {!isTemp && distance > 5 && (
@@ -393,7 +423,7 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
                             y={labelY - 12}
                             width={50}
                             height={20}
-                            fill="#9333ea"
+                            fill="#14b8a6"
                             rx={3}
                         />
                         <text
@@ -404,7 +434,7 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
                             fontWeight="600"
                             textAnchor="middle"
                         >
-                            {distanceMM} mm
+                            {distanceCM} cm
                         </text>
                     </g>
                 )}
@@ -674,19 +704,44 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
                                     >
                                         {/* Label */}
                                         <div className="flex items-center justify-center py-2 border-b border-white/10 relative">
-                                            <span className={`text-sm font-semibold ${index === 0
-                                                ? 'text-teal-400'
-                                                : 'text-amber-400'
-                                                }`}>
-                                                {comparisonImages ? (index === 0 ? 'Ảnh của bệnh nhân' : 'Ca bệnh tương tự') : (index === 0 ? 'xAI' : 'Prototype')}
-                                            </span>
+                                            {index === 0 ? (
+                                                // Left image label - xAI
+                                                <span className="text-sm font-semibold text-teal-400">
+                                                    {comparisonImages ? 'Ảnh của bệnh nhân' : 'xAI'}
+                                                </span>
+                                            ) : (
+                                                // Right image label - Original | Prototype toggle
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        onClick={() => setShowPrototype(false)}
+                                                        className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${
+                                                            !showPrototype
+                                                                ? 'bg-amber-500 text-white'
+                                                                : 'text-amber-400 hover:bg-amber-500/20'
+                                                        }`}
+                                                    >
+                                                        Original
+                                                    </button>
+                                                    <span className="text-gray-500">|</span>
+                                                    <button
+                                                        onClick={() => setShowPrototype(true)}
+                                                        className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${
+                                                            showPrototype
+                                                                ? 'bg-amber-500 text-white'
+                                                                : 'text-amber-400 hover:bg-amber-500/20'
+                                                        }`}
+                                                    >
+                                                        Prototype
+                                                    </button>
+                                                </div>
+                                            )}
 
                                             {/* Collapse/Expand Button */}
                                             {index === 1 && (
                                                 <button
                                                     onClick={() => setIsPrototypeCollapsed(!isPrototypeCollapsed)}
                                                     className="absolute right-2 p-1 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors"
-                                                    title="Ẩn Prototype"
+                                                    title="Ẩn panel phải"
                                                 >
                                                     <PanelRightClose className="w-4 h-4" />
                                                 </button>
@@ -695,7 +750,7 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
                                                 <button
                                                     onClick={() => setIsPrototypeCollapsed(false)}
                                                     className="absolute right-2 p-1 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors"
-                                                    title="Hiện Prototype"
+                                                    title="Hiện panel phải"
                                                 >
                                                     <PanelRight className="w-4 h-4" />
                                                 </button>
@@ -726,7 +781,11 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
                                             >
                                                 <img
                                                     ref={index === 0 ? imageRef : null}
-                                                    src={img.url}
+                                                    src={
+                                                        index === 1 && img.original && img.prototype
+                                                            ? (showPrototype ? (img.prototype.url || img.original.url) : img.original.url)
+                                                            : img.url
+                                                    }
                                                     alt={img.type}
                                                     className="max-w-full max-h-full object-contain select-none"
                                                     style={{ filter: index === 0 ? `brightness(${brightness}%) contrast(${contrast}%)` : 'none' }}
