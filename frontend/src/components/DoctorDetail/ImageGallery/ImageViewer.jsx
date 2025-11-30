@@ -15,7 +15,7 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
     const [brightness, setBrightness] = useState(100);
     const [contrast, setContrast] = useState(100);
     const [activeAdjustment, setActiveAdjustment] = useState(null); // 'brightness' or 'contrast'
-    const [activeTool, setActiveTool] = useState(null); // 'square', 'circle', 'freehand', 'eraser'
+    const [activeTool, setActiveTool] = useState(null); // 'square', 'circle', 'freehand', 'eraser', 'ruler'
     const [isPanMode, setIsPanMode] = useState(false);
     const [isPrototypeCollapsed, setIsPrototypeCollapsed] = useState(false);
     const { isLeftCollapsed, setIsLeftCollapsed } = useSidebar();
@@ -24,6 +24,10 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
     // Drawing states - separate for single and multiple image modes
     const [singleImageAnnotations, setSingleImageAnnotations] = useState([]);
     const [multipleImageAnnotations, setMultipleImageAnnotations] = useState([]);
+    
+    // Ruler/measurement states
+    const [measurements, setMeasurements] = useState([]);
+    const [currentMeasurement, setCurrentMeasurement] = useState(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [startPoint, setStartPoint] = useState(null);
     const [currentShape, setCurrentShape] = useState(null);
@@ -67,6 +71,8 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
         setSelectedAnnotation(null);
         setEditingLabel('');
         setComparisonImages(null);
+        setMeasurements([]);
+        setCurrentMeasurement(null);
     };
 
     const handleCompareImages = (images) => {
@@ -174,7 +180,12 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
         setIsDrawing(true);
         setStartPoint({ x, y });
 
-        if (activeTool === 'freehand') {
+        if (activeTool === 'ruler') {
+            setCurrentMeasurement({
+                start: { x, y },
+                end: { x, y }
+            });
+        } else if (activeTool === 'freehand') {
             setCurrentShape({
                 type: 'freehand',
                 points: [{ x, y }]
@@ -221,7 +232,12 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
         const currentX = (e.clientX - imgRect.left) * scaleX;
         const currentY = (e.clientY - imgRect.top) * scaleY;
 
-        if (activeTool === 'freehand') {
+        if (activeTool === 'ruler') {
+            setCurrentMeasurement(prev => ({
+                ...prev,
+                end: { x: currentX, y: currentY }
+            }));
+        } else if (activeTool === 'freehand') {
             setCurrentShape(prev => ({
                 ...prev,
                 points: [...prev.points, { x: currentX, y: currentY }]
@@ -246,7 +262,18 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
             return;
         }
 
-        if (isDrawing && currentShape) {
+        if (isDrawing && activeTool === 'ruler' && currentMeasurement) {
+            // Calculate distance
+            const dx = currentMeasurement.end.x - currentMeasurement.start.x;
+            const dy = currentMeasurement.end.y - currentMeasurement.start.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Only save if distance is meaningful (> 5 pixels)
+            if (distance > 5) {
+                setMeasurements(prev => [...prev, currentMeasurement]);
+            }
+            setCurrentMeasurement(null);
+        } else if (isDrawing && currentShape) {
             const newShape = { ...currentShape, label: 'Phát hiện' };
             if (activeTool === 'freehand' && currentShape.points?.length > 2) {
                 setAnnotations(prev => [...prev, newShape]);
@@ -309,6 +336,80 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
     const handleCancelDelete = () => {
         setConfirmDelete(false);
         setAnnotationToDelete(null);
+    };
+
+    // Render measurement line
+    const renderMeasurement = (measurement, index, isTemp = false) => {
+        const dx = measurement.end.x - measurement.start.x;
+        const dy = measurement.end.y - measurement.start.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Calculate midpoint for label
+        const midX = (measurement.start.x + measurement.end.x) / 2;
+        const midY = (measurement.start.y + measurement.end.y) / 2;
+        
+        // Calculate angle for perpendicular label offset
+        const angle = Math.atan2(dy, dx);
+        const offsetX = -Math.sin(angle) * 20;
+        const offsetY = Math.cos(angle) * 20;
+        
+        const labelX = midX + offsetX;
+        const labelY = midY + offsetY;
+        
+        // Format distance (assuming 1 pixel = 0.1mm for medical imaging)
+        const distanceMM = (distance * 0.1).toFixed(1);
+        
+        return (
+            <g key={`measurement-${index}`}>
+                {/* Line */}
+                <line
+                    x1={measurement.start.x}
+                    y1={measurement.start.y}
+                    x2={measurement.end.x}
+                    y2={measurement.end.y}
+                    stroke={isTemp ? '#a855f7' : '#9333ea'}
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                />
+                {/* Start point */}
+                <circle
+                    cx={measurement.start.x}
+                    cy={measurement.start.y}
+                    r={4}
+                    fill={isTemp ? '#a855f7' : '#9333ea'}
+                />
+                {/* End point */}
+                <circle
+                    cx={measurement.end.x}
+                    cy={measurement.end.y}
+                    r={4}
+                    fill={isTemp ? '#a855f7' : '#9333ea'}
+                />
+                {/* Distance label */}
+                {!isTemp && distance > 5 && (
+                    <g>
+                        <rect
+                            x={labelX - 25}
+                            y={labelY - 12}
+                            width={50}
+                            height={20}
+                            fill="#9333ea"
+                            rx={3}
+                        />
+                        <text
+                            x={labelX}
+                            y={labelY + 3}
+                            fill="white"
+                            fontSize="11"
+                            fontWeight="600"
+                            textAnchor="middle"
+                        >
+                            {distanceMM} mm
+                        </text>
+                    </g>
+                )}
+            </g>
+        );
     };
 
     // Render annotation shape with label
@@ -646,6 +747,12 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
                                                         ))}
                                                         {/* Render current drawing shape */}
                                                         {currentShape && renderShape(currentShape, -1, true)}
+                                                        {/* Render saved measurements */}
+                                                        {measurements.map((measurement, idx) => 
+                                                            renderMeasurement(measurement, idx, false)
+                                                        )}
+                                                        {/* Render current measurement */}
+                                                        {currentMeasurement && renderMeasurement(currentMeasurement, -1, true)}
                                                     </svg>
                                                 )}
                                             </div>
@@ -699,6 +806,12 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal }) => {
                                         ))}
                                         {/* Render current drawing shape */}
                                         {currentShape && renderShape(currentShape, -1, true)}
+                                        {/* Render saved measurements */}
+                                        {measurements.map((measurement, idx) => 
+                                            renderMeasurement(measurement, idx, false)
+                                        )}
+                                        {/* Render current measurement */}
+                                        {currentMeasurement && renderMeasurement(currentMeasurement, -1, true)}
                                     </svg>
                                 )}
                             </div>

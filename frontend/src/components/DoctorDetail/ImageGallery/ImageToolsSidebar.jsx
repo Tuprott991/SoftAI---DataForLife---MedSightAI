@@ -68,10 +68,10 @@ export const ImageToolsSidebar = ({
                 {/* Measurement Tools Group */}
                 <div>
                     <h4 className="text-[11px] font-semibold text-gray-300 mb-2 text-center">Thước Đo</h4>
-                    <div className="grid grid-cols-2 gap-1">
+                    <div className="flex justify-center">
                         <button
                             onClick={() => onToolChange('ruler')}
-                            className={`aspect-square flex items-center justify-center rounded transition-colors ${activeTool === 'ruler'
+                            className={`aspect-square w-10 flex items-center justify-center rounded transition-colors ${activeTool === 'ruler'
                                 ? 'bg-purple-500 text-white'
                                 : 'text-gray-300 hover:text-white hover:bg-white/5'
                                 }`}
