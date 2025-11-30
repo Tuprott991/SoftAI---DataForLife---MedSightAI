@@ -7,6 +7,7 @@ import {
     ChatbotSection
 } from '../components/StudentDetail';
 import { Toast } from '../components/custom/Toast';
+import { User, Calendar } from 'lucide-react';
 
 export const StudentDetail = () => {
     const { id } = useParams();
@@ -16,6 +17,37 @@ export const StudentDetail = () => {
     const [annotations, setAnnotations] = useState([]);
     const [submissionData, setSubmissionData] = useState(null);
     const [toast, setToast] = useState(null);
+
+    // Status color helper function (matching PatientCard)
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'Critical':
+                return 'bg-red-600/30 text-white border-red-600/40';
+            case 'Under Treatment':
+                return 'bg-blue-500/30 text-white border-blue-500/40';
+            case 'Stable':
+                return 'bg-green-500/30 text-white border-green-500/40';
+            case 'Admitted':
+                return 'bg-teal-500/30 text-white border-teal-500/40';
+            default:
+                return 'bg-gray-500/30 text-white border-gray-500/40';
+        }
+    };
+
+    const getStatusText = (status) => {
+        switch (status) {
+            case 'Critical':
+                return 'Nguy Kịch';
+            case 'Under Treatment':
+                return 'Đang Điều Trị';
+            case 'Stable':
+                return 'Ổn Định';
+            case 'Admitted':
+                return 'Tiếp Nhận';
+            default:
+                return status;
+        }
+    };
 
     // Simulate API call to fetch case data
     useEffect(() => {
@@ -98,8 +130,32 @@ export const StudentDetail = () => {
             {/* Main Content - Fixed Height */}
             <div className="flex-1 overflow-hidden min-h-0">
                 <div className="h-full px-6 py-6">
+                    {/* Patient Info Header */}
+                    <div className="mb-4 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4">
+                        <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                                <h1 className="text-2xl font-bold text-white mb-2">{patient.name}</h1>
+                                <div className="flex items-center gap-4 text-sm text-gray-400">
+                                    <div className="flex items-center gap-2">
+                                        <User className="w-4 h-4" />
+                                        <span>{patient.age} tuổi • {patient.gender}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Calendar className="w-4 h-4" />
+                                        <span>Nhập viện: {new Date(patient.admissionDate).toLocaleDateString('vi-VN')}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <span className={`px-4 py-2 rounded-full text-sm font-semibold border ${getStatusColor(patient.status)}`}>
+                                    {getStatusText(patient.status)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Two Column Layout */}
-                    <div className="grid grid-cols-1 lg:grid-cols-7 gap-6 h-full max-w-[1600px] mx-auto">
+                    <div className="grid grid-cols-1 lg:grid-cols-7 gap-6 h-[calc(100%-120px)] max-w-[1600px] mx-auto">
 
                         {/* Left Column - Image + Submit (5/7) */}
                         <div className="lg:col-span-5 flex flex-col gap-4 h-full min-h-0">

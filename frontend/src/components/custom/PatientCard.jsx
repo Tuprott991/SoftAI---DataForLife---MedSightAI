@@ -8,13 +8,15 @@ export const PatientCard = ({ patient }) => {
     const getStatusColor = (status) => {
         switch (status) {
             case 'Critical':
-                return 'bg-red-500/20 text-red-400 border-red-500/30';
+                return 'bg-red-600/30 text-white border-red-600/40'; // Nguy kịch - Đỏ
             case 'Under Treatment':
-                return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+                return 'bg-blue-500/30 text-white border-blue-500/40'; // Đang điều trị - Xanh dương
             case 'Stable':
-                return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+                return 'bg-green-500/30 text-white border-green-500/40'; // Ổn định - Xanh lá
+            case 'Admitted':
+                return 'bg-teal-500/30 text-white border-teal-500/40'; // Tiếp nhận - Màu logo (teal)
             default:
-                return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+                return 'bg-gray-500/30 text-white border-gray-500/40';
         }
     };
 
@@ -26,6 +28,8 @@ export const PatientCard = ({ patient }) => {
                 return 'Đang Điều Trị';
             case 'Stable':
                 return 'Ổn Định';
+            case 'Admitted':
+                return 'Tiếp Nhận';
             default:
                 return status;
         }
@@ -61,7 +65,9 @@ export const PatientCard = ({ patient }) => {
                     // Doctor view - hiện đầy đủ thông tin
                     <>
                         <h3 className="text-lg font-bold text-white mb-1">{patient.name}</h3>
-                        <p className="text-sm text-teal-400 mb-4">{patient.diagnosis}</p>
+                        {patient.status !== 'Admitted' && (
+                            <p className="text-sm text-teal-400 mb-4">{patient.diagnosis}</p>
+                        )}
 
                         <div className="space-y-2">
                             <div className="flex items-center gap-2 text-sm text-gray-400">
