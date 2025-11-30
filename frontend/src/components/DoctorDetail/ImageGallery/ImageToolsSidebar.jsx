@@ -14,10 +14,10 @@ export const ImageToolsSidebar = ({
 }) => {
     return (
         <div className="w-14 border-r border-white/10 bg-[#141414] flex flex-col">
-            <div className="flex-1 overflow-y-auto p-1.5 space-y-2">
+            <div className="flex-1 overflow-y-auto p-1.5 space-y-3">
                 {/* Annotation Tools Group */}
                 <div>
-                    <h4 className="text-[11px] font-semibold text-gray-400 mb-1.5 text-center">Khoanh Vùng</h4>
+                    <h4 className="text-[11px] font-semibold text-gray-300 mb-2 text-center">Khoanh Vùng</h4>
                     <div className="grid grid-cols-2 gap-1">
                         <button
                             onClick={() => onToolChange('square')}
@@ -62,9 +62,12 @@ export const ImageToolsSidebar = ({
                     </div>
                 </div>
 
+                {/* Divider */}
+                <div className="border-t border-white/30"></div>
+
                 {/* Measurement Tools Group */}
                 <div>
-                    <h4 className="text-[11px] font-semibold text-gray-400 mb-1.5 text-center">Thước Đo</h4>
+                    <h4 className="text-[11px] font-semibold text-gray-300 mb-2 text-center">Thước Đo</h4>
                     <div className="grid grid-cols-2 gap-1">
                         <button
                             onClick={() => onToolChange('ruler')}
@@ -79,9 +82,12 @@ export const ImageToolsSidebar = ({
                     </div>
                 </div>
 
+                {/* Divider */}
+                <div className="border-t border-white/20"></div>
+
                 {/* Light Adjustment Tools Group */}
                 <div>
-                    <h4 className="text-[11px] font-semibold text-gray-400 mb-1.5 text-center">Ánh Sáng</h4>
+                    <h4 className="text-[11px] font-semibold text-gray-300 mb-2 text-center">Ánh Sáng</h4>
                     <div className="grid grid-cols-2 gap-1">
                         <button
                             onClick={onBrightnessClick}
@@ -106,9 +112,12 @@ export const ImageToolsSidebar = ({
                     </div>
                 </div>
 
+                {/* Divider */}
+                <div className="border-t border-white/20"></div>
+
                 {/* Other Utilities Group */}
                 <div>
-                    <h4 className="text-[11px] font-semibold text-gray-400 mb-1.5 text-center">Tiện Ích Khác</h4>
+                    <h4 className="text-[11px] font-semibold text-gray-300 mb-2 text-center">Tiện Ích Khác</h4>
                     <div className="grid grid-cols-2 gap-1">
                         <button
                             onClick={onRotateLeft}
