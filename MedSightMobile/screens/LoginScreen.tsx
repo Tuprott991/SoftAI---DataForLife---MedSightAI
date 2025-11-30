@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { TextInput, Button, Text, ActivityIndicator, HelperText } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { app } from '@/services/firebase';
@@ -122,26 +123,45 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+    <LinearGradient
+      colors={['#0A0E27', '#1A1F3A', '#0F3460', '#16213E']}
+      locations={[0, 0.3, 0.7, 1]}
+      style={styles.gradient}
     >
-      {/* ReCAPTCHA Verifier Modal - REQUIRED for Firebase Phone Auth */}
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={app.options}
-      />
-      
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text variant="displaySmall" style={styles.title}>
-            MedSight
-          </Text>
-          <Text variant="bodyLarge" style={styles.subtitle}>
-            {step === 'phone' ? 'Đăng nhập' : 'Xác minh OTP'}
-          </Text>
-        </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
+      >
+        {/* ReCAPTCHA Verifier Modal - REQUIRED for Firebase Phone Auth */}
+        <FirebaseRecaptchaVerifierModal
+          ref={recaptchaVerifier}
+          firebaseConfig={app.options}
+        />
+        
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* Medical/X-ray themed decorative overlay */}
+          <View style={styles.decorativeOverlay}>
+            <View style={[styles.scanLine, { top: '10%' }]} />
+            <View style={[styles.scanLine, { top: '35%' }]} />
+            <View style={[styles.scanLine, { top: '60%' }]} />
+            <View style={[styles.scanLine, { top: '85%' }]} />
+          </View>
+
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.iconContainer}>
+              <Text style={styles.iconText}>⚕️</Text>
+            </View>
+            <Text variant="displaySmall" style={styles.title}>
+              MedSight AI
+            </Text>
+            <Text variant="bodyLarge" style={styles.subtitle}>
+              {step === 'phone' ? 'Đăng nhập' : 'Xác minh OTP'}
+            </Text>
+            <Text variant="bodySmall" style={styles.subtitleSecondary}>
+              X-Ray Diagnosis System
+            </Text>
+          </View>
 
         {/* Content */}
         <View style={styles.content}>
@@ -152,13 +172,14 @@ export default function LoginScreen() {
                 Số điện thoại
               </Text>
               <TextInput
-                label="Nhập số điện thoại (+84...)"
+                label="Nhập số điện thoại (+84...)" 
                 value={phoneNumber}
                 onChangeText={handlePhoneChange}
                 keyboardType="phone-pad"
                 mode="outlined"
                 style={styles.input}
-                placeholder="+84 9xx xxx xxx"
+                textColor="#FFFFFF"
+                placeholderTextColor="#9BA1A6"
                 editable={!isLoading}
                 outlineColor="#14B8A6"
                 activeOutlineColor="#0D9488"
@@ -290,31 +311,77 @@ export default function LoginScreen() {
         )}
       </ScrollView>
     </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#151718',
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
     padding: 20,
   },
+  decorativeOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.1,
+  },
+  scanLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: '#14B8A6',
+    shadowColor: '#14B8A6',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+  },
   header: {
     marginBottom: 40,
     alignItems: 'center',
+  },
+  iconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(20, 184, 166, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: '#14B8A6',
+  },
+  iconText: {
+    fontSize: 40,
   },
   title: {
     fontWeight: 'bold',
     color: '#14B8A6',
     marginBottom: 8,
+    textShadowColor: 'rgba(20, 184, 166, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   subtitle: {
     color: '#ECEDEE',
     textAlign: 'center',
+    fontWeight: '600',
+  },
+  subtitleSecondary: {
+    color: '#9BA1A6',
+    textAlign: 'center',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   content: {
     marginBottom: 20,
@@ -326,8 +393,7 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 12,
-    backgroundColor: '#1F2937',
-    color: '#ECEDEE',
+    backgroundColor: 'rgba(31, 41, 55, 0.7)',
   },
   infoText: {
     color: '#9BA1A6',
@@ -353,7 +419,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: '#14B8A6',
-    backgroundColor: '#1F2937',
+    backgroundColor: 'rgba(31, 41, 55, 0.7)',
     color: '#ECEDEE',
     fontSize: 24,
     fontWeight: 'bold',

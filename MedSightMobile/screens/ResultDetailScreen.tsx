@@ -1,40 +1,299 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   ScrollView,
   StyleSheet,
   Image,
-  Dimensions,
   TouchableOpacity,
+  ImageSourcePropType,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, Card, Button, List, Chip, Avatar, Divider, IconButton } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 
-const { width } = Dimensions.get('window');
+type HeatmapPresetKey = 'focalLeft' | 'diffuseCentral' | 'focalRight' | 'baseline';
+
+type HeatmapPresetConfig = {
+  baseColors: [string, string, ...string[]];
+  highlight: {
+    colors: [string, string, ...string[]];
+    size: { width: number; height: number };
+    position: { top: number; left: number };
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+    rotate?: string;
+  };
+  bloom?: {
+    colors: [string, string, ...string[]];
+    size: { width: number; height: number };
+    position: { top: number; left: number };
+    opacity: number;
+  };
+  streaks?: { top: number; opacity: number }[];
+};
+
+type CasePreviewImage =
+  | {
+      id: string;
+      type: 'asset';
+      source: ImageSourcePropType;
+      label?: string;
+    }
+  | {
+      id: string;
+      type: 'heatmap';
+      preset: HeatmapPresetKey;
+      label?: string;
+    };
+
+const HEATMAP_PRESETS: Record<HeatmapPresetKey, HeatmapPresetConfig> = {
+  focalLeft: {
+    baseColors: ['#160F2B', '#1F1740', '#2B2056'],
+    highlight: {
+      colors: ['rgba(24, 219, 172, 0.9)', 'rgba(64, 184, 244, 0.85)', 'rgba(248, 94, 94, 0.9)'],
+      size: { width: 260, height: 300 },
+      position: { top: -70, left: -50 },
+      start: { x: 0.12, y: 0.1 },
+      end: { x: 0.85, y: 0.9 },
+      rotate: '-16deg',
+    },
+    bloom: {
+      colors: ['rgba(20, 184, 166, 0.25)', 'rgba(20, 184, 166, 0)'],
+      size: { width: 320, height: 360 },
+      position: { top: -100, left: -80 },
+      opacity: 0.82,
+    },
+    streaks: [
+      { top: 68, opacity: 0.22 },
+      { top: 142, opacity: 0.16 },
+      { top: 216, opacity: 0.18 },
+    ],
+  },
+  diffuseCentral: {
+    baseColors: ['#160F2B', '#1E183F', '#292053'],
+    highlight: {
+      colors: ['rgba(88, 247, 195, 0.9)', 'rgba(246, 201, 86, 0.85)', 'rgba(242, 97, 118, 0.8)'],
+      size: { width: 340, height: 260 },
+      position: { top: -60, left: -110 },
+      start: { x: 0.25, y: 0 },
+      end: { x: 0.55, y: 1 },
+    },
+    bloom: {
+      colors: ['rgba(246, 201, 86, 0.2)', 'rgba(246, 201, 86, 0)'],
+      size: { width: 380, height: 380 },
+      position: { top: -100, left: -120 },
+      opacity: 0.85,
+    },
+    streaks: [
+      { top: 60, opacity: 0.18 },
+      { top: 150, opacity: 0.14 },
+      { top: 230, opacity: 0.19 },
+    ],
+  },
+  focalRight: {
+    baseColors: ['#160F2B', '#1C1539', '#241C4A'],
+    highlight: {
+      colors: ['rgba(46, 199, 226, 0.85)', 'rgba(76, 248, 166, 0.9)', 'rgba(248, 112, 112, 0.85)'],
+      size: { width: 260, height: 290 },
+      position: { top: -74, left: -90 },
+      start: { x: 0.2, y: 0.12 },
+      end: { x: 0.92, y: 0.88 },
+      rotate: '14deg',
+    },
+    bloom: {
+      colors: ['rgba(76, 248, 166, 0.22)', 'rgba(76, 248, 166, 0)'],
+      size: { width: 320, height: 340 },
+      position: { top: -110, left: -120 },
+      opacity: 0.8,
+    },
+    streaks: [
+      { top: 70, opacity: 0.2 },
+      { top: 152, opacity: 0.14 },
+      { top: 234, opacity: 0.16 },
+    ],
+  },
+  baseline: {
+    baseColors: ['#120C24', '#1A1234', '#231945'],
+    highlight: {
+      colors: ['rgba(70, 235, 210, 0.75)', 'rgba(144, 202, 249, 0.6)', 'rgba(162, 114, 255, 0.6)'],
+      size: { width: 240, height: 300 },
+      position: { top: -60, left: -40 },
+      start: { x: 0.2, y: 0.15 },
+      end: { x: 0.6, y: 0.92 },
+    },
+    streaks: [
+      { top: 82, opacity: 0.12 },
+      { top: 172, opacity: 0.14 },
+      { top: 252, opacity: 0.1 },
+    ],
+  },
+};
 
 export default function ResultDetailScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { caseData } = route.params;
-  
+
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  const images = useMemo<CasePreviewImage[]>(() => {
+    const rawImages = Array.isArray(caseData?.images) ? caseData.images : [];
+
+    return rawImages
+      .map((item: any, index: number) => {
+        if (item?.type === 'asset' && item.source) {
+          return {
+            id: item.id ?? `asset_${index}`,
+            type: 'asset' as const,
+            source: item.source as ImageSourcePropType,
+            label: item.label,
+          } as CasePreviewImage;
+        }
+
+        if (
+          item?.type === 'heatmap' &&
+          typeof item.preset === 'string' &&
+          item.preset in HEATMAP_PRESETS
+        ) {
+          const preset = item.preset as HeatmapPresetKey;
+          return {
+            id: item.id ?? `heatmap_${index}`,
+            type: 'heatmap' as const,
+            preset,
+            label: item.label,
+          } as CasePreviewImage;
+        }
+
+        if (typeof item === 'string' && item.length > 0) {
+          return {
+            id: `legacy_uri_${index}`,
+            type: 'asset' as const,
+            source: { uri: item } as ImageSourcePropType,
+          } as CasePreviewImage;
+        }
+
+        return undefined;
+      })
+      .filter(
+        (entry: CasePreviewImage | undefined): entry is CasePreviewImage => Boolean(entry)
+      );
+  }, [caseData?.images]);
+
   const isCompleted = caseData.status === 'completed';
+  const hasImages = images.length > 0;
+  const currentPreview = hasImages ? images[currentImageIndex] : null;
+
+  useEffect(() => {
+    setCurrentImageIndex(0);
+  }, [images]);
 
   const handleNextImage = () => {
-    if (currentImageIndex < caseData.images.length - 1) {
-      setCurrentImageIndex(currentImageIndex + 1);
+    if (currentImageIndex < images.length - 1) {
+      setCurrentImageIndex((prev) => prev + 1);
     }
   };
 
   const handlePrevImage = () => {
     if (currentImageIndex > 0) {
-      setCurrentImageIndex(currentImageIndex - 1);
+      setCurrentImageIndex((prev) => prev - 1);
     }
   };
 
   const handleGoBack = () => {
     navigation.goBack();
+  };
+
+  const renderHeatmapPreview = (preset: HeatmapPresetKey) => {
+    const config = HEATMAP_PRESETS[preset];
+
+    return (
+      <View style={styles.detailHeatmapWrap}>
+        <LinearGradient colors={config.baseColors} style={styles.detailHeatmapCanvas}>
+          <LinearGradient
+            colors={config.highlight.colors}
+            start={config.highlight.start}
+            end={config.highlight.end}
+            style={[
+              styles.detailHeatmapHighlight,
+              {
+                width: config.highlight.size.width,
+                height: config.highlight.size.height,
+                top: config.highlight.position.top,
+                left: config.highlight.position.left,
+                borderRadius: Math.max(config.highlight.size.width, config.highlight.size.height),
+                transform: config.highlight.rotate ? [{ rotate: config.highlight.rotate }] : undefined,
+              },
+            ]}
+          />
+
+          {config.bloom ? (
+            <LinearGradient
+              colors={config.bloom.colors}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={[
+                styles.detailHeatmapBloom,
+                {
+                  width: config.bloom.size.width,
+                  height: config.bloom.size.height,
+                  top: config.bloom.position.top,
+                  left: config.bloom.position.left,
+                  opacity: config.bloom.opacity,
+                  borderRadius: Math.max(config.bloom.size.width, config.bloom.size.height),
+                },
+              ]}
+            />
+          ) : null}
+
+          <LinearGradient
+            colors={['rgba(255, 255, 255, 0.12)', 'rgba(255, 255, 255, 0)'] as [string, string]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={styles.detailHeatmapGlow}
+          />
+
+          {config.streaks?.map((streak, index) => (
+            <View
+              key={`detail-streak-${preset}-${index}`}
+              style={[
+                styles.detailHeatmapStreak,
+                {
+                  top: streak.top,
+                  opacity: streak.opacity,
+                },
+              ]}
+            />
+          ))}
+
+          <View style={styles.detailHeatmapFrame} />
+        </LinearGradient>
+      </View>
+    );
+  };
+
+  const renderThumbnail = (preview: CasePreviewImage, index: number) => {
+    const isActive = currentImageIndex === index;
+
+    if (preview.type === 'asset') {
+      return (
+        <Image
+          source={preview.source}
+          style={[styles.thumbnail, isActive && styles.thumbnailActive]}
+          resizeMode="cover"
+        />
+      );
+    }
+
+    const preset = HEATMAP_PRESETS[preview.preset];
+    return (
+      <LinearGradient
+        colors={preset.baseColors}
+        style={[styles.thumbnailHeatmap, isActive && styles.thumbnailActive]}
+      >
+        <View style={styles.thumbnailOverlay} />
+      </LinearGradient>
+    );
   };
 
   return (
@@ -52,17 +311,26 @@ export default function ResultDetailScreen() {
         </View>
 
         {/* Image Section */}
-        {caseData.images && caseData.images.length > 0 ? (
+        {hasImages ? (
           <View style={styles.imageSection}>
             <View style={styles.imageContainer}>
-              <Image
-                source={{ uri: caseData.images[currentImageIndex] }}
-                style={styles.image}
-                resizeMode="cover"
-              />
-              {caseData.images.length > 1 && (
+              {currentPreview?.type === 'asset' ? (
+                <Image source={currentPreview.source} style={styles.image} resizeMode="cover" />
+              ) : currentPreview ? (
+                renderHeatmapPreview(currentPreview.preset)
+              ) : (
+                <View style={[styles.previewFallback]}>
+                  <Avatar.Icon
+                    icon="image-off-outline"
+                    size={64}
+                    style={{ backgroundColor: '#D1D5DB' }}
+                  />
+                  <Text style={styles.noImageText}>Không có hình ảnh</Text>
+                </View>
+              )}
+
+              {images.length > 1 && (
                 <>
-                  {/* Previous Button */}
                   {currentImageIndex > 0 && (
                     <TouchableOpacity
                       style={[styles.imageNavBtn, styles.prevBtn]}
@@ -72,8 +340,7 @@ export default function ResultDetailScreen() {
                     </TouchableOpacity>
                   )}
 
-                  {/* Next Button */}
-                  {currentImageIndex < caseData.images.length - 1 && (
+                  {currentImageIndex < images.length - 1 && (
                     <TouchableOpacity
                       style={[styles.imageNavBtn, styles.nextBtn]}
                       onPress={handleNextImage}
@@ -85,45 +352,44 @@ export default function ResultDetailScreen() {
               )}
             </View>
 
-            {/* Image Counter */}
-            {caseData.images.length > 1 && (
+            {currentPreview?.label ? (
+              <Text style={styles.imageCaption}>{currentPreview.label}</Text>
+            ) : null}
+
+            {images.length > 1 && (
               <Text style={styles.imageCounter}>
-                {currentImageIndex + 1} / {caseData.images.length}
+                {currentImageIndex + 1} / {images.length}
               </Text>
             )}
 
-            {/* Image Thumbnails */}
-            {caseData.images.length > 1 && (
+            {images.length > 1 && (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 style={styles.thumbnailContainer}
               >
-                {caseData.images.map((img: string, index: number) => (
+                {images.map((preview, index) => (
                   <TouchableOpacity
-                    key={index}
+                    key={preview.id}
                     onPress={() => setCurrentImageIndex(index)}
+                    activeOpacity={0.8}
                   >
-                    <Image
-                      source={{ uri: img }}
-                      style={[
-                        styles.thumbnail,
-                        currentImageIndex === index && styles.thumbnailActive,
-                      ]}
-                    />
+                    {renderThumbnail(preview, index)}
                   </TouchableOpacity>
                 ))}
               </ScrollView>
             )}
           </View>
         ) : (
-          <View style={[styles.imageContainer, styles.noImagePlaceholder]}>
-            <Avatar.Icon
-              icon="image-off-outline"
-              size={64}
-              style={{ backgroundColor: '#D1D5DB' }}
-            />
-            <Text style={styles.noImageText}>Không có hình ảnh</Text>
+          <View style={styles.imageSection}>
+            <View style={[styles.imageContainer, styles.noImagePlaceholder]}>
+              <Avatar.Icon
+                icon="image-off-outline"
+                size={64}
+                style={{ backgroundColor: '#D1D5DB' }}
+              />
+              <Text style={styles.noImageText}>Không có hình ảnh</Text>
+            </View>
           </View>
         )}
 
@@ -220,9 +486,7 @@ export default function ResultDetailScreen() {
                     {caseData.doctor_diagnosis.conclusion}
                   </Text>
 
-                  <Text variant="labelLarge" style={[styles.sectionLabel, { marginTop: 12 }]}>
-                    Ghi chú:
-                  </Text>
+                  <Text variant="labelLarge" style={[styles.sectionLabel, { marginTop: 12 }]}>Ghi chú:</Text>
                   <Text variant="bodyMedium" style={styles.diagnosisText}>
                     {caseData.doctor_diagnosis.notes}
                   </Text>
@@ -339,6 +603,19 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  previewFallback: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  imageCaption: {
+    textAlign: 'center',
+    marginTop: 10,
+    fontSize: 14,
+    color: '#E5E7EB',
+    fontWeight: '600',
+  },
   noImagePlaceholder: {
     backgroundColor: '#F3F4F6',
   },
@@ -386,8 +663,61 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#E5E7EB',
   },
+  thumbnailHeatmap: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 8,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  thumbnailOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(17, 24, 39, 0.2)',
+  },
   thumbnailActive: {
     borderColor: '#14B8A6',
+  },
+  detailHeatmapWrap: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  detailHeatmapCanvas: {
+    width: '88%',
+    height: '88%',
+    borderRadius: 28,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    backgroundColor: '#0F172A',
+  },
+  detailHeatmapHighlight: {
+    position: 'absolute',
+  },
+  detailHeatmapBloom: {
+    position: 'absolute',
+  },
+  detailHeatmapGlow: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  detailHeatmapStreak: {
+    position: 'absolute',
+    left: 18,
+    right: 18,
+    height: 2,
+    backgroundColor: 'rgba(148, 163, 184, 0.35)',
+  },
+  detailHeatmapFrame: {
+    ...StyleSheet.absoluteFillObject,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: 28,
   },
   content: {
     padding: 12,
@@ -401,21 +731,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    marginBottom: 4,
   },
   infoLabel: {
     color: '#6B7280',
-    fontWeight: '600',
     fontSize: 14,
   },
   infoValue: {
     color: '#1F2937',
     fontWeight: '600',
-    fontSize: 14,
   },
   divider: {
+    marginVertical: 8,
     backgroundColor: '#E5E7EB',
-    marginVertical: 4,
   },
   symptomsCard: {
     marginBottom: 12,
@@ -423,58 +751,53 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   symptomsText: {
-    color: '#374151',
-    lineHeight: 24,
+    color: '#4B5563',
+    lineHeight: 20,
   },
   resultCard: {
     marginBottom: 12,
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    borderLeftWidth: 4,
   },
   aiCard: {
-    borderLeftColor: '#0369A1',
+    backgroundColor: '#F0F9FF',
   },
   doctorCard: {
-    borderLeftColor: '#059669',
+    backgroundColor: '#ECFDF5',
   },
   predictionText: {
-    color: '#0369A1',
-    fontWeight: 'bold',
-    marginBottom: 4,
+    color: '#0C4A6E',
   },
   confidenceText: {
-    color: '#6B7280',
-    fontStyle: 'italic',
+    color: '#0C4A6E',
+    marginTop: 4,
   },
   sectionLabel: {
     color: '#1F2937',
-    fontWeight: '600',
     marginBottom: 4,
   },
   diagnosisText: {
     color: '#374151',
-    lineHeight: 22,
+    lineHeight: 20,
   },
   recommendationCard: {
     marginBottom: 12,
-    backgroundColor: '#F0FDF4',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
   },
   recommendationItem: {
     flexDirection: 'row',
-    marginBottom: 12,
+    alignItems: 'flex-start',
+    marginBottom: 6,
   },
   recommendationBullet: {
-    fontSize: 16,
-    color: '#059669',
-    marginRight: 12,
-    fontWeight: 'bold',
+    color: '#14B8A6',
+    fontSize: 18,
+    lineHeight: 20,
+    marginRight: 6,
   },
   recommendationText: {
-    flex: 1,
     color: '#374151',
-    fontSize: 14,
+    flex: 1,
     lineHeight: 20,
   },
   pendingCard: {
@@ -484,25 +807,24 @@ const styles = StyleSheet.create({
   },
   pendingContent: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 20,
   },
   pendingTitle: {
-    color: '#78350F',
-    fontWeight: 'bold',
-    textAlign: 'center',
+    color: '#B45309',
+    fontWeight: '600',
   },
   pendingSubtitle: {
     color: '#92400E',
     textAlign: 'center',
-    marginTop: 8,
+    paddingHorizontal: 20,
   },
   actionButtons: {
-    gap: 12,
-    marginBottom: 20,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 12,
   },
   actionBtn: {
-    borderWidth: 1.5,
     borderColor: '#14B8A6',
-    paddingVertical: 4,
   },
 });
