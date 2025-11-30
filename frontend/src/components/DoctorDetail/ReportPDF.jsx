@@ -1,13 +1,25 @@
 import { FileText, Download, Printer } from 'lucide-react';
+import { getFindingImagePath } from '../../constants/medicalData';
 
-export const ReportPDF = ({ reportData, patient, selectedImage }) => {
+export const ReportPDF = ({ reportData, patient, selectedImage, analysisData }) => {
     if (!reportData || !patient) return null;
     
-    // Extract xAI and Original images if available
-    const xaiImage = Array.isArray(selectedImage) && selectedImage.length > 0 ? selectedImage[0] : null;
-    const originalImage = Array.isArray(selectedImage) && selectedImage.length > 1 && selectedImage[1].original 
-        ? selectedImage[1].original.url 
-        : patient.image;
+    // Get all xAI images for all findings
+    const allXaiImages = [];
+    if (analysisData?.findings) {
+        analysisData.findings.forEach(finding => {
+            const imagePath = getFindingImagePath(finding.text, patient.image);
+            if (imagePath) {
+                allXaiImages.push({
+                    url: imagePath,
+                    finding: finding.text,
+                    severity: finding.severity
+                });
+            }
+        });
+    }
+    
+    const originalImage = patient.image;
 
     const handlePrint = () => {
         window.print();
@@ -152,9 +164,19 @@ export const ReportPDF = ({ reportData, patient, selectedImage }) => {
                     <div className="space-y-3 text-sm">
                         <div>
                             <span className="font-semibold">MeSH Tags: </span>
-                            <a href="#medical-images" className="text-teal-600 hover:text-teal-700 underline cursor-pointer">
-                                {reportData.bao_cao_x_quang.MeSH}
-                            </a>
+                            <span className="text-gray-700">
+                                {allXaiImages.map((xaiImg, index) => (
+                                    <span key={index}>
+                                        <a 
+                                            href={`#xai-${index}`} 
+                                            className="text-teal-600 hover:text-teal-700 underline cursor-pointer"
+                                        >
+                                            {xaiImg.finding}
+                                        </a>
+                                        {index < allXaiImages.length - 1 && ', '}
+                                    </span>
+                                ))}
+                            </span>
                         </div>
 
                         <div>
@@ -195,38 +217,57 @@ export const ReportPDF = ({ reportData, patient, selectedImage }) => {
                     <h2 className="text-lg font-semibold text-gray-800 mb-3 pb-2 border-b border-gray-300">
                         III. HÌNH ẢNH CHẨN ĐOÁN
                     </h2>
-                    <div className="grid grid-cols-2 gap-4">
-                        {/* xAI Image */}
-                        {xaiImage && (
-                            <div className="border-2 border-gray-300 rounded-lg p-3">
-                                <div className="text-center mb-2">
-                                    <span className="text-sm font-semibold text-teal-600">xAI - Phân tích AI</span>
-                                </div>
-                                <img 
-                                    src={xaiImage.url} 
-                                    alt="xAI Analysis" 
-                                    className="w-full h-auto object-contain border border-gray-200 rounded"
-                                    style={{ maxHeight: '400px' }}
-                                />
-                            </div>
-                        )}
-                        
-                        {/* Original Image */}
-                        <div className="border-2 border-gray-300 rounded-lg p-3">
+                    
+                    {/* Original Image */}
+                    <div className="mb-6">
+                        <div className="border-2 border-amber-400 rounded-lg p-3">
                             <div className="text-center mb-2">
-                                <span className="text-sm font-semibold text-amber-600">Original - Ảnh gốc</span>
+                                <span className="text-sm font-semibold text-amber-600">Ảnh X-quang Gốc</span>
                             </div>
                             <img 
                                 src={originalImage} 
                                 alt="Original X-Ray" 
-                                className="w-full h-auto object-contain border border-gray-200 rounded"
-                                style={{ maxHeight: '400px' }}
+                                className="w-full h-auto object-contain border border-gray-200 rounded mx-auto"
+                                style={{ maxHeight: '500px', maxWidth: '600px' }}
                             />
                         </div>
                     </div>
-                    <p className="text-xs text-gray-500 italic mt-2 text-center">
-                        * Hình ảnh xAI hiển thị vùng phát hiện bất thường được đánh dấu bởi AI
-                    </p>
+
+                    {/* All xAI Images */}
+                    {allXaiImages.length > 0 && (
+                        <div>
+                            <h3 className="text-base font-semibold text-gray-700 mb-3">
+                                Hình ảnh phân tích AI (xAI) - {allXaiImages.length} triệu chứng
+                            </h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                {allXaiImages.map((xaiImg, index) => (
+                                    <div key={index} id={`xai-${index}`} className="border-2 border-teal-400 rounded-lg p-3 scroll-mt-4">
+                                        <div className="text-center mb-2">
+                                            <span className="text-sm font-semibold text-teal-600">
+                                                xAI: {xaiImg.finding}
+                                            </span>
+                                            <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
+                                                xaiImg.severity === 'Cao' ? 'bg-red-100 text-red-700' :
+                                                xaiImg.severity === 'Trung bình' ? 'bg-amber-100 text-amber-700' :
+                                                'bg-green-100 text-green-700'
+                                            }`}>
+                                                {xaiImg.severity}
+                                            </span>
+                                        </div>
+                                        <img 
+                                            src={xaiImg.url} 
+                                            alt={`xAI: ${xaiImg.finding}`}
+                                            className="w-full h-auto object-contain border border-gray-200 rounded"
+                                            style={{ maxHeight: '350px' }}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="text-xs text-gray-500 italic mt-3 text-center">
+                                * Hình ảnh xAI hiển thị vùng phát hiện bất thường được đánh dấu bởi AI cho từng triệu chứng
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Signature Section */}

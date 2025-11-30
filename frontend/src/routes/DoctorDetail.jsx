@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Sparkles, RefreshCw, Bot, FileText, Send, X } from 'lucide-react';
 import { patientsData } from '../constants/patients';
-import { medicalImagesGroups, generateAnalysisData, getFindingImagePath } from '../constants/medicalData';
+import { medicalImagesGroups, generateAnalysisData, getFindingImagePath, getPrototypeImagePath } from '../constants/medicalData';
 import { generatePatientReport } from '../constants/reportData';
 import {
     ImageListGrouped,
@@ -120,8 +120,9 @@ export const DoctorDetail = () => {
         // Set selected finding ID for highlighting
         setSelectedFindingId(finding.id);
         
-        // Get the image path for this finding
+        // Get the image paths for this finding
         const findingImagePath = getFindingImagePath(finding.text, patient.image);
+        const prototypeImagePath = getPrototypeImagePath(finding.text, patient.image);
 
         if (findingImagePath) {
             // Create xAI image (left side) - AI-enhanced image with finding highlighted
@@ -141,8 +142,8 @@ export const DoctorDetail = () => {
                     type: `Original: Ảnh gốc`,
                 },
                 prototype: {
-                    url: null, // Will be added later
-                    type: `Prototype: Sẽ thêm sau`,
+                    url: prototypeImagePath,
+                    type: `Prototype: ${finding.text}`,
                 },
                 imageCode: `RIGHT-${finding.id}`,
                 modality: "Comparison"
@@ -371,7 +372,7 @@ export const DoctorDetail = () => {
                         
                         {/* Modal Content - Scrollable PDF */}
                         <div className="flex-1 overflow-y-auto p-6">
-                            <ReportPDF reportData={reportData} patient={patient} selectedImage={selectedImage} />
+                            <ReportPDF reportData={reportData} patient={patient} selectedImage={selectedImage} analysisData={analysisData} />
                         </div>
                     </div>
                 </div>

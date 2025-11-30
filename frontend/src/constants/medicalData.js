@@ -130,6 +130,47 @@ export const getFindingImagePath = (findingText, patientImagePath) => {
   return `${basePath}${folderPath}`;
 };
 
+// Hàm lấy đường dẫn ảnh prototype theo finding
+export const getPrototypeImagePath = (findingText, originalImagePath) => {
+  if (!originalImagePath || !findingText) return null;
+
+  const basePath = originalImagePath.substring(
+    0,
+    originalImagePath.lastIndexOf("/") + 1
+  );
+
+  // Ánh xạ tên finding sang tên thư mục con và file prototype
+  const prototypePathMap = {
+    "Đông đặc phổi": "Consolidation/proto.png",
+    "Tổn thương phổi": "Lung Opacity/proto.png",
+    "Vôi hóa": "Calcification/proto.png",
+    "Khối u phổi": "Nodule Mass/proto.png",
+    "Dày màng phổi": "Pleural Thickening/proto.png",
+    "Xơ phổi": "Pulmonary fibrosis/proto.png",
+    "Phình động mạch chủ": "Aortic enlargement/proto.jpeg",
+    "Tim to": "Cardiomegaly/proto.png",
+    "Thâm nhiễm phổi": "Infiltration/proto.png",
+  };
+
+  // Xử lý đặc biệt cho các thư mục khác nhau
+  if (basePath.includes("02_pneumonia")) {
+    if (findingText === "Phình động mạch chủ") {
+      return `${basePath}Aortic enlargement/proto.jpeg`;
+    } else if (findingText === "Tim to") {
+      return `${basePath}Cardiomegaly/proto.png`;
+    } else if (findingText === "Thâm nhiễm phổi") {
+      return `${basePath}Infiltration/proto.png`;
+    } else if (findingText === "Tổn thương phổi") {
+      return `${basePath}Lung Opacity/proto.png`;
+    }
+  }
+
+  const protoPath = prototypePathMap[findingText];
+  if (!protoPath) return null;
+
+  return `${basePath}${protoPath}`;
+};
+
 // Lấy danh sách findings từ thư mục của bệnh nhân
 const getFindingsFromPath = (imagePath) => {
   if (!imagePath) return [];
