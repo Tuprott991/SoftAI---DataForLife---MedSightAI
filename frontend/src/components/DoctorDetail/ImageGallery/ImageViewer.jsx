@@ -46,8 +46,11 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal, onSimilarCa
     useEffect(() => {
         if (Array.isArray(image) && image.length > 1) {
             setComparisonImages(image);
+        } else if (!Array.isArray(image) && comparisonImages) {
+            // Reset comparisonImages if image is no longer an array
+            setComparisonImages(null);
         }
-    }, [image]);
+    }, [JSON.stringify(image)]);
 
     // Check if image is an array (multiple images from finding click) or single image
     const images = comparisonImages || (Array.isArray(image) ? image : (image ? [image] : []));

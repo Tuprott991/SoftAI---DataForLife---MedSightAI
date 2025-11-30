@@ -350,23 +350,7 @@ export const DoctorDetail = () => {
                                                                                         onClick={(e) => {
                                                                                             e.preventDefault();
                                                                                             e.stopPropagation();
-                                                                                            
-                                                                                            const findingImagePath = getFindingImagePath(finding.text, patient.image);
-                                                                                            
-                                                                                            if (findingImagePath) {
-                                                                                                const xaiImage = {
-                                                                                                    id: `xai-similar-${idx}`,
-                                                                                                    url: findingImagePath,
-                                                                                                    type: `xAI: ${finding.text}`,
-                                                                                                    imageCode: `XAI-SIMILAR-${idx}`,
-                                                                                                    modality: "AI-Enhanced"
-                                                                                                };
-                                                                                                
-                                                                                                // Keep right image (similar case)
-                                                                                                if (Array.isArray(selectedImage) && selectedImage.length >= 2) {
-                                                                                                    setSelectedImage([xaiImage, selectedImage[1]]);
-                                                                                                }
-                                                                                            }
+                                                                                            handleFindingClick(finding);
                                                                                         }}
                                                                                         className="px-2.5 py-1 bg-teal-500/20 hover:bg-teal-500/30 border border-teal-500/40 text-teal-300 rounded-md text-xs transition-colors cursor-pointer"
                                                                                     >
