@@ -44,6 +44,12 @@ export const DoctorDetail = () => {
     const handleAIAnalyze = () => {
         setIsAnalyzing(true);
         
+        // Exit similar case mode and restore to original single image
+        setIsSimilarCaseMode(false);
+        setSimilarCaseData(null);
+        setIsLoadingSimilarAnalysis(false);
+        setSelectedImage(originalImage);
+        
         // Random delay từ 3-6 giây
         const randomDelay = Math.floor(Math.random() * (6000 - 3000 + 1)) + 3000;
         

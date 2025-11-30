@@ -733,13 +733,8 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal, onSimilarCa
                                                 <span className="text-sm font-semibold text-teal-400">
                                                     {comparisonImages ? 'Ảnh của bệnh nhân' : 'xAI'}
                                                 </span>
-                                            ) : comparisonImages ? (
-                                                // Similar case comparison label
-                                                <span className="text-sm font-semibold text-amber-400">
-                                                    Ca bệnh tương đồng
-                                                </span>
-                                            ) : (
-                                                // Right image label - Original | Prototype toggle
+                                            ) : (img.original && img.prototype) ? (
+                                                // Right image label - Original | Prototype toggle (when img has original and prototype properties)
                                                 <div className="flex items-center gap-1">
                                                     <button
                                                         onClick={() => setShowPrototype(false)}
@@ -763,6 +758,11 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal, onSimilarCa
                                                         Prototype
                                                     </button>
                                                 </div>
+                                            ) : (
+                                                // Similar case comparison label
+                                                <span className="text-sm font-semibold text-amber-400">
+                                                    Ca bệnh tương đồng
+                                                </span>
                                             )}
 
                                             {/* Collapse/Expand Button */}
