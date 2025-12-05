@@ -11,7 +11,8 @@ class MedMAEBackbone(nn.Module):
         
         if pretrained_weights and pretrained_weights.endswith('.pth'):
             print(f"📦 Loading MedMAE weights from {pretrained_weights}")
-            checkpoint = torch.load(pretrained_weights, map_location='cpu')
+            # PyTorch 2.6+: weights_only=False để load checkpoint với argparse.Namespace
+            checkpoint = torch.load(pretrained_weights, map_location='cpu', weights_only=False)
             
             # Extract model weights nếu checkpoint có structure {'model': ..., 'optimizer': ...}
             if isinstance(checkpoint, dict) and 'model' in checkpoint:

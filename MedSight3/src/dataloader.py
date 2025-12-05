@@ -24,12 +24,21 @@ class CSRDataset(Dataset):
         meta_cols = ['image_id', 'rad_id']
         
         # Known target diseases (tự động match các variants)
-        target_keywords = ['COPD', 'Lung tumor', 'Pneumonia', 'Tuberculosis', 'Other', 'No finding']
+        # Note: 'Other lesion' là concept, chỉ 'Other disease/diseases' mới là target
+        target_keywords = ['COPD', 'Lung tumor', 'Pneumonia', 'Tuberculosis', 'No finding']
         target_cols = []
         
         for col in df.columns:
             if col in meta_cols:
                 continue
+            
+            # Special handling for 'Other' - chỉ match 'Other disease(s)', không match 'Other lesion'
+            if 'other' in col.lower():
+                if 'disease' in col.lower():
+                    target_cols.append(col)
+                # Skip 'Other lesion' - nó là concept
+                continue
+            
             # Check nếu column name chứa target keyword
             if any(keyword.lower() in col.lower() for keyword in target_keywords):
                 target_cols.append(col)
