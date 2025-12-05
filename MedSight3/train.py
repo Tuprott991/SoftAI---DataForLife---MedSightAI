@@ -200,17 +200,37 @@ def main():
         print("\n--- START STAGE 1: Concept Learning ---")
     
     # Tính pos_weight để xử lý class imbalance
+    # Tính trực tiếp từ CSV thay vì load ảnh (nhanh hơn 100x)
     if rank == 0:
         print("Computing pos_weight for balanced BCE loss...")
-    train_concepts = []
-    for i, batch in enumerate(train_loader):
-        train_concepts.append(batch['concepts'])
-        if i >= 100:  # Sample 100 batches
-            break
-    train_concepts = torch.cat(train_concepts, dim=0)
-    pos_weight = (train_concepts == 0).sum(dim=0) / (train_concepts == 1).sum(dim=0).clamp(min=1)
-    if rank == 0:
+        import pandas as pd
+        df_train = pd.read_csv(args.train_csv)
+        
+        # Lấy concept columns (giống logic trong dataloader)
+        meta_cols = ['image_id', 'rad_id']
+        target_keywords = ['COPD', 'Lung tumor', 'Pneumonia', 'Tuberculosis', 'No finding']
+        target_cols = []
+        for col in df_train.columns:
+            if col in meta_cols:
+                continue
+            if 'other' in col.lower():
+                if 'disease' in col.lower():
+                    target_cols.append(col)
+                continue
+            if any(keyword.lower() in col.lower() for keyword in target_keywords):
+                target_cols.append(col)
+        concept_cols = [c for c in df_train.columns if c not in target_cols + meta_cols]
+        
+        # Aggregate như trong dataset
+        df_agg = df_train.groupby('image_id')[concept_cols + target_cols].max().reset_index()
+        
+        # Tính pos_weight từ concept columns
+        concept_values = torch.tensor(df_agg[concept_cols].values, dtype=torch.float32)
+        pos_weight = (concept_values == 0).sum(dim=0) / (concept_values == 1).sum(dim=0).clamp(min=1)
         print(f"Pos weights range: {pos_weight.min():.2f} - {pos_weight.max():.2f}")
+    else:
+        # Các rank khác dùng uniform weights (sẽ được broadcast từ rank 0)
+        pos_weight = torch.ones(num_concepts)
     
     optimizer = optim.AdamW([
         {'params': model.module.backbone.parameters(), 'lr': args.lr * 0.1}, # Backbone học chậm
