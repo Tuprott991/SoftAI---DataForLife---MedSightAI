@@ -2,7 +2,7 @@ import torch
 import torch.optim as optim
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 from tqdm import tqdm
 import argparse
 import os
@@ -70,7 +70,7 @@ def train_one_epoch(model, loader, optimizer, criterion, stage, scaler, device, 
         optimizer.zero_grad()
         
         # Dùng Mixed Precision để train nhanh và nhẹ hơn
-        with autocast():
+        with autocast('cuda'):
             outputs = model(images)
             loss = 0
             
@@ -184,9 +184,12 @@ def main():
     ).to(device)
     
     # Wrap with DDP
-    model = DDP(model, device_ids=[local_rank], output_device=local_rank)
+    # find_unused_parameters=True vì các stage khác nhau dùng các parameters khác nhau
+    model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
     
-    scaler = GradScaler() # Cho AMP
+    # PyTorch 2.6: torch.amp.GradScaler thay vì torch.cuda.amp.GradScaler
+    from torch.amp import GradScaler
+    scaler = GradScaler('cuda') # Cho AMP
     
     # Best model tracking
     best_auc = 0.0
