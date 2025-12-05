@@ -22,7 +22,7 @@ class CSRDataset(Dataset):
         # Tách tên cột
         # Giả định 6 cột cuối là Target, còn lại (trừ image_id, rad_id) là Concept
         # Bạn cần kiểm tra lại chính xác tên cột trong file thật
-        target_cols = ['COPD', 'Lung tumor', 'Pneumonia', 'Tuberculosis', 'Other diseases', 'No finding']
+        target_cols = ['COPD', 'Lung tumor', 'Pneumonia', 'Tuberculosis', 'Other disease', 'No finding']
         meta_cols = ['image_id', 'rad_id']
         concept_cols = [c for c in df.columns if c not in target_cols + meta_cols]
         
