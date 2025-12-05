@@ -166,14 +166,16 @@ def main():
         print(f"Output directory: {output_dir}")
     
     # 1. Prepare Data
-    train_loader, test_loader, num_concepts, num_classes, train_sampler = get_dataloaders(
+    train_loader, val_loader, test_loader, num_concepts, num_classes, train_sampler = get_dataloaders(
         args.train_csv, args.test_csv, args.train_dir, args.test_dir, 
         batch_size=args.batch_size,
         rank=rank,
-        world_size=world_size
+        world_size=world_size,
+        val_split=0.1  # 10% của training set làm validation
     )
     if rank == 0:
         print(f"Data Loaded: {num_concepts} Concepts, {num_classes} Diseases")
+        print(f"Train size: {len(train_loader.dataset)}, Val size: {len(val_loader.dataset)}, Test size: {len(test_loader.dataset)}")
         print(f"World Size: {world_size}, Batch Size per GPU: {args.batch_size}")
         if world_size > 1:
             print(f"✅ DDP enabled: Each GPU trains on {len(train_loader.dataset) // world_size} samples")
@@ -256,7 +258,7 @@ def main():
         
         # Validate (only on rank 0)
         if rank == 0:
-            val_loss, val_auc = validate(model.module, test_loader, device, rank)
+            val_loss, val_auc = validate(model.module, val_loader, device, rank)
             print(f"Epoch {epoch+1}: Val Loss {val_loss:.4f}, AUC {val_auc:.4f}")
             
             # Save best model
@@ -321,7 +323,7 @@ def main():
         
         # Validate (only on rank 0)
         if rank == 0:
-            val_loss, val_auc = validate(model.module, test_loader, device, rank)
+            val_loss, val_auc = validate(model.module, val_loader, device, rank)
             print(f"Epoch {epoch+1}: Val Loss {val_loss:.4f}, AUC {val_auc:.4f}")
             
             # Save best model
@@ -331,12 +333,33 @@ def main():
                 torch.save(model.module.state_dict(), output_dir / 'best_model_stage3.pth')
                 print(f"✅ Saved best Stage 3 model (AUC: {best_auc:.4f})")
     
+    # ====================================================
+    # FINAL TEST: Đánh giá trên test set sau khi train xong hết
+    # ====================================================
+    if rank == 0:
+        print("\n" + "="*60)
+        print("FINAL EVALUATION ON TEST SET")
+        print("="*60)
+        
+        # Load best model
+        best_model_path = output_dir / 'best_model_stage3.pth'
+        if best_model_path.exists():
+            print(f"Loading best model from {best_model_path}")
+            model.module.load_state_dict(torch.load(best_model_path))
+        
+        # Test
+        test_loss, test_auc = validate(model.module, test_loader, device, rank)
+        print(f"\n🏆 Test Results:")
+        print(f"  Test Loss: {test_loss:.4f}")
+        print(f"  Test AUC: {test_auc:.4f}")
+        print(f"\n🎉 Training Complete!")
+        print(f"Best Val AUC: {best_auc:.4f} from {best_stage}")
+        print(f"Final Test AUC: {test_auc:.4f}")
+        print(f"All checkpoints saved to: {output_dir}")
+    
     # Save Final Model
     if rank == 0:
         torch.save(model.module.state_dict(), output_dir / "final_model.pth")
-        print(f"\n🎉 Training Complete!")
-        print(f"Best AUC: {best_auc:.4f} from {best_stage}")
-        print(f"All checkpoints saved to: {output_dir}")
     
     # Cleanup DDP
     cleanup_ddp()

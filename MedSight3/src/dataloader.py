@@ -105,13 +105,14 @@ class CSRDataset(Dataset):
             'image_id': image_id
         }
 
-def get_dataloaders(train_csv, test_csv, train_dir, test_dir, batch_size=32, rank=0, world_size=1):
+def get_dataloaders(train_csv, test_csv, train_dir, test_dir, batch_size=32, rank=0, world_size=1, val_split=0.1):
     """
     Get dataloaders with DDP support.
     
     Args:
         rank: Current GPU rank (0, 1, ...)
         world_size: Total number of GPUs (1 for single GPU)
+        val_split: Tỷ lệ validation split từ training set (0.1 = 10%)
     """
     # Augmentation cho MedMAE (Input 224x224)
     train_transform = transforms.Compose([
@@ -129,7 +130,19 @@ def get_dataloaders(train_csv, test_csv, train_dir, test_dir, batch_size=32, ran
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
     
-    train_dataset = CSRDataset(train_csv, train_dir, phase='train', transform=train_transform)
+    # Load full training dataset
+    full_train_dataset = CSRDataset(train_csv, train_dir, phase='train', transform=train_transform)
+    
+    # Split train thành train + val
+    from torch.utils.data import random_split
+    train_size = int((1 - val_split) * len(full_train_dataset))
+    val_size = len(full_train_dataset) - train_size
+    train_dataset, val_dataset = random_split(full_train_dataset, [train_size, val_size])
+    
+    # Val dataset dùng val_transform (không augment)
+    val_dataset.dataset = CSRDataset(train_csv, train_dir, phase='train', transform=val_transform)
+    
+    # Test dataset (chỉ dùng sau khi train xong hết)
     test_dataset = CSRDataset(test_csv, test_dir, phase='test', transform=val_transform)
     
     # DistributedSampler cho DDP
@@ -144,6 +157,12 @@ def get_dataloaders(train_csv, test_csv, train_dir, test_dir, batch_size=32, ran
             shuffle=True,
             drop_last=True  # Tránh incomplete batch gây lỗi DDP
         )
+        val_sampler = DistributedSampler(
+            val_dataset,
+            num_replicas=world_size,
+            rank=rank,
+            shuffle=False
+        )
         test_sampler = DistributedSampler(
             test_dataset,
             num_replicas=world_size,
@@ -155,6 +174,14 @@ def get_dataloaders(train_csv, test_csv, train_dir, test_dir, batch_size=32, ran
             train_dataset, 
             batch_size=batch_size,
             sampler=train_sampler,  # Dùng sampler thay vì shuffle
+            num_workers=4,
+            pin_memory=True,
+            persistent_workers=True
+        )
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=batch_size,
+            sampler=val_sampler,
             num_workers=4,
             pin_memory=True,
             persistent_workers=True
@@ -177,6 +204,14 @@ def get_dataloaders(train_csv, test_csv, train_dir, test_dir, batch_size=32, ran
             pin_memory=True,
             persistent_workers=True
         )
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=4,
+            pin_memory=True,
+            persistent_workers=True
+        )
         test_loader = DataLoader(
             test_dataset,
             batch_size=batch_size,
@@ -186,4 +221,8 @@ def get_dataloaders(train_csv, test_csv, train_dir, test_dir, batch_size=32, ran
             persistent_workers=True
         )
     
-    return train_loader, test_loader, len(train_dataset.concept_names), len(train_dataset.target_names), train_sampler if world_size > 1 else None
+    # Get concept/class names từ original dataset (không phải split)
+    num_concepts = len(full_train_dataset.concept_names)
+    num_classes = len(full_train_dataset.target_names)
+    
+    return train_loader, val_loader, test_loader, num_concepts, num_classes, train_sampler if world_size > 1 else None
