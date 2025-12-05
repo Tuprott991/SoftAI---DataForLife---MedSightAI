@@ -120,14 +120,23 @@ def train_one_epoch(model, loader, optimizer, criterion, stage, scaler, device, 
         
     return total_loss / len(loader)
 
-def validate(model, loader, device, rank=0):
-    """Validation function để đánh giá model."""
+def validate(model, loader, device, rank=0, stage=3, criterion=None):
+    """Validation function với metrics phù hợp cho từng stage.
+    
+    Args:
+        stage: 1 = Concept Learning (validate concepts), 
+               2 = Prototype Learning (skip validation),
+               3 = Task Learning (validate disease prediction)
+        criterion: Loss function để tính val loss (phải GIỐNG training criterion)
+    """
     model.eval()
     total_loss = 0
     all_preds = []
     all_targets = []
     
-    criterion = torch.nn.BCEWithLogitsLoss()
+    # Default criterion nếu không pass vào
+    if criterion is None:
+        criterion = torch.nn.BCEWithLogitsLoss()
     
     with torch.no_grad():
         if rank == 0:
@@ -137,23 +146,43 @@ def validate(model, loader, device, rank=0):
         
         for batch in pbar:
             images = batch['image'].to(device)
+            concepts = batch['concepts'].to(device)
             targets = batch['targets'].to(device)
             
             outputs = model(images)
-            loss = criterion(outputs['logits'], targets)
+            
+            # Stage 1: Validate concept prediction
+            if stage == 1:
+                cams = outputs['cams']
+                concept_logits = F.adaptive_max_pool2d(cams, (1, 1)).squeeze(-1).squeeze(-1)
+                loss = criterion(concept_logits, concepts)
+                all_preds.append(torch.sigmoid(concept_logits).cpu())
+                all_targets.append(concepts.cpu())
+            # Stage 3: Validate disease prediction
+            else:
+                loss = criterion(outputs['logits'], targets)
+                all_preds.append(torch.sigmoid(outputs['logits']).cpu())
+                all_targets.append(targets.cpu())
             
             total_loss += loss.item()
-            all_preds.append(torch.sigmoid(outputs['logits']).cpu())
-            all_targets.append(targets.cpu())
     
     # Tính AUC
     try:
         from sklearn.metrics import roc_auc_score
         preds = torch.cat(all_preds).numpy()
         targets = torch.cat(all_targets).numpy()
-        auc = roc_auc_score(targets, preds, average='macro')
+        
+        # Chỉ tính AUC cho classes có cả positive và negative samples
+        valid_classes = (targets.sum(axis=0) > 0) & (targets.sum(axis=0) < len(targets))
+        if valid_classes.sum() > 0:
+            auc = roc_auc_score(targets[:, valid_classes], preds[:, valid_classes], average='macro')
+        else:
+            auc = 0.0
+        
         return total_loss / len(loader), auc
-    except:
+    except Exception as e:
+        if rank == 0:
+            print(f"Warning: Could not compute AUC - {e}")
         return total_loss / len(loader), 0.0
 
 def main():
@@ -268,15 +297,15 @@ def main():
         
         # Validate (only on rank 0)
         if rank == 0:
-            val_loss, val_auc = validate(model.module, val_loader, device, rank)
-            print(f"Epoch {epoch+1}: Val Loss {val_loss:.4f}, AUC {val_auc:.4f}")
+            val_loss, val_auc = validate(model.module, val_loader, device, rank, stage=1, criterion=criterion_s1)
+            print(f"Epoch {epoch+1}: Val Loss {val_loss:.4f}, Concept AUC {val_auc:.4f}")
             
             # Save best model
             if val_auc > best_auc:
                 best_auc = val_auc
                 best_stage = 'stage1'
                 torch.save(model.module.state_dict(), output_dir / 'best_model_stage1.pth')
-                print(f"✅ Saved best Stage 1 model (AUC: {best_auc:.4f})")
+                print(f"✅ Saved best Stage 1 model (Concept AUC: {best_auc:.4f})")
 
     # ====================================================
     # GIAI ĐOẠN 2: Prototype Learning
@@ -333,15 +362,15 @@ def main():
         
         # Validate (only on rank 0)
         if rank == 0:
-            val_loss, val_auc = validate(model.module, val_loader, device, rank)
-            print(f"Epoch {epoch+1}: Val Loss {val_loss:.4f}, AUC {val_auc:.4f}")
+            val_loss, val_auc = validate(model.module, val_loader, device, rank, stage=3, criterion=criterion_s3)
+            print(f"Epoch {epoch+1}: Val Loss {val_loss:.4f}, Disease AUC {val_auc:.4f}")
             
             # Save best model
             if val_auc > best_auc:
                 best_auc = val_auc
                 best_stage = 'stage3'
                 torch.save(model.module.state_dict(), output_dir / 'best_model_stage3.pth')
-                print(f"✅ Saved best Stage 3 model (AUC: {best_auc:.4f})")
+                print(f"✅ Saved best Stage 3 model (Disease AUC: {best_auc:.4f})")
     
     # ====================================================
     # FINAL TEST: Đánh giá trên test set sau khi train xong hết
@@ -357,14 +386,17 @@ def main():
             print(f"Loading best model from {best_model_path}")
             model.module.load_state_dict(torch.load(best_model_path))
         
-        # Test
-        test_loss, test_auc = validate(model.module, test_loader, device, rank)
-        print(f"\n🏆 Test Results:")
+        # Test (dùng BCE loss không pos_weight cho fair comparison)
+        test_criterion = torch.nn.BCEWithLogitsLoss()
+        test_loss, test_auc = validate(model.module, test_loader, device, rank, stage=3, criterion=test_criterion)
+        print(f"\n🏆 Final Test Results (Disease Prediction):")
         print(f"  Test Loss: {test_loss:.4f}")
-        print(f"  Test AUC: {test_auc:.4f}")
+        print(f"  Test AUC (macro): {test_auc:.4f}")
+        print(f"  {'Excellent!' if test_auc >= 0.85 else 'Very Good!' if test_auc >= 0.80 else 'Good!' if test_auc >= 0.75 else 'Fair' if test_auc >= 0.70 else 'Needs Improvement'}")
         print(f"\n🎉 Training Complete!")
         print(f"Best Val AUC: {best_auc:.4f} from {best_stage}")
-        print(f"Final Test AUC: {test_auc:.4f}")
+        print(f"Final Test Disease AUC (macro): {test_auc:.4f}")
+        print(f"\nBenchmark: VinDr-CXR ResNet-50 ~0.78 | DenseNet-121 ~0.82 | SOTA ~0.87")
         print(f"All checkpoints saved to: {output_dir}")
     
     # Save Final Model
