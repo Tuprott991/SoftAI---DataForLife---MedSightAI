@@ -86,15 +86,18 @@ def train_one_epoch(model, loader, optimizer, criterion, stage, scaler, device, 
             
             # --- GIAI ĐOẠN 2: Train Prototypes (Contrastive) ---
             elif stage == 2:
+                # DDP wrap: Phải dùng .module để truy cập methods của model gốc
+                actual_model = model.module if hasattr(model, 'module') else model
+                
                 # Lấy vector cục bộ: (B, K, Dim)
-                local_vectors = model.get_local_concept_vectors(outputs['features'], outputs['cams'])
+                local_vectors = actual_model.get_local_concept_vectors(outputs['features'], outputs['cams'])
                 # Chiếu qua Projector: (B, K, Projection_Dim)
-                projected = model.projector(local_vectors.permute(0, 2, 1).unsqueeze(-1)).squeeze(-1).permute(0, 2, 1)
+                projected = actual_model.projector(local_vectors.permute(0, 2, 1).unsqueeze(-1)).squeeze(-1).permute(0, 2, 1)
                 
                 # Tính Loss Contrastive
                 # Chỉ tính loss cho những concept có trong ảnh (concepts_gt == 1)
-                loss = criterion(projected, model.prototypes, concepts_gt, 
-                                 num_prototypes_per_concept=model.M)
+                loss = criterion(projected, actual_model.prototypes, concepts_gt, 
+                                 num_prototypes_per_concept=actual_model.M)
                 
             # --- GIAI ĐOẠN 3: Train Task Head (Disease Prediction) ---
             elif stage == 3:
