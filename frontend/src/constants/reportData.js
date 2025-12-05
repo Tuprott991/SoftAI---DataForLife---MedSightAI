@@ -14,8 +14,8 @@ export const reportTemplates = {
   "02_pneumonia": {
     bao_cao_x_quang: {
       MeSH: "Thâm nhiễm phổi, Đông đặc, Giãn động mạch chủ, Tim to",
-      loai_anh: "X-quang ngực tư thế PA",
-      chi_dinh: "Ho có đờm, sốt cao, khó thở",
+      loai_anh: "X-quang ngực tư thế PA", 
+      chi_dinh: "Truyền dịch và kháng sinh hỗ trợ hô hấp",
       so_sanh: "So với phim chụp 3 tháng trước: tổn thương mới xuất hiện.",
       mo_ta: "Tim: Kích thước tim tăng nhẹ, chỉ số tim-ngực > 0.5. Bờ tim phải lồi ra, gợi ý giãn tâm thất phải. Trung thất giãn rộng, ghi nhận giãn động mạch chủ lên với đường kính khoảng 4.2 cm. Phổi: Có vùng đông đặc không khí phế nang rộng tại thùy dưới phổi phải và một phần thùy giữa. Ghi nhận hình ảnh viền khí phế quản (air bronchogram) trong vùng đông đặc. Có thâm nhiễm lan tỏa dạng vá ở cả hai trường phổi. Màng phổi: Không thấy tràn dịch màng phổi rõ rệt. Cơ hoành: Cơ hoành phải hơi cao, di động hạn chế. Hệ xương: Có vôi hóa nhẹ dọc theo cung động mạch chủ. Chất lượng hình ảnh: Tốt, phơi sáng đạt yêu cầu.",
       ket_luan: "Viêm phổi thùy dưới phải và thùy giữa với hình ảnh đông đặc rõ rệt. Đồng thời có tim to và giãn động mạch chủ lên. Khuyến nghị điều trị kháng sinh mạnh và theo dõi chức năng tim mạch."
