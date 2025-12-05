@@ -68,14 +68,26 @@ class CSRDataset(Dataset):
         row = self.data.iloc[idx]
         image_id = row['image_id']
         
-        # Tạo đường dẫn ảnh (giả sử file dicom có đuôi .dicom hoặc không đuôi)
-        # Cần check thực tế file trong folder tên là gì (VD: id.dicom)
-        img_path = os.path.join(self.root_dir, f"{image_id}.dicom") 
-        if not os.path.exists(img_path):
-             img_path = os.path.join(self.root_dir, image_id) # Nếu ko có đuôi
-             
+        # Tạo đường dẫn ảnh
+        # Ưu tiên PNG/JPG (preprocessed) trước, fallback về DICOM nếu không có
+        img_path = None
+        for ext in ['.png', '.jpg', '.dicom', '']:
+            candidate = os.path.join(self.root_dir, f"{image_id}{ext}")
+            if os.path.exists(candidate):
+                img_path = candidate
+                break
+        
+        if img_path is None:
+            raise FileNotFoundError(f"Image not found: {image_id}")
+        
         # Xử lý ảnh
-        image = dicom_to_image(img_path)
+        if img_path.endswith('.dicom') or not any(img_path.endswith(ext) for ext in ['.png', '.jpg', '.jpeg']):
+            # DICOM: cần xử lý windowing
+            image = dicom_to_image(img_path)
+        else:
+            # PNG/JPG: load trực tiếp (nhanh hơn)
+            from PIL import Image
+            image = Image.open(img_path).convert('RGB')
         
         if self.transform:
             image = self.transform(image)
