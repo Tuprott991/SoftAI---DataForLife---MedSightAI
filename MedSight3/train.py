@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 import torch.optim as optim
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -76,10 +77,11 @@ def train_one_epoch(model, loader, optimizer, criterion, stage, scaler, device, 
             
             # --- GIAI ĐOẠN 1: Train Concept Model ---
             if stage == 1:
-                # Tính Global Average Pooling trên CAMs để so sánh với nhãn concept
-                # cams shape: (B, K, H, W) -> mean(dim=(2,3)) -> (B, K)
-                cams = outputs['cams']
-                concept_logits = cams.mean(dim=(2, 3)) 
+                # CAMs từ concept_head: (B, K, H, W)
+                # Dùng Global Max Pooling để lấy activation mạnh nhất của mỗi concept
+                # Max pooling phản ánh sự hiện diện của concept tốt hơn mean
+                cams = outputs['cams']  # (B, K, H, W)
+                concept_logits = F.adaptive_max_pool2d(cams, (1, 1)).squeeze(-1).squeeze(-1)  # (B, K)
                 loss = criterion(concept_logits, concepts_gt)
             
             # --- GIAI ĐOẠN 2: Train Prototypes (Contrastive) ---
@@ -104,6 +106,11 @@ def train_one_epoch(model, loader, optimizer, criterion, stage, scaler, device, 
         
         # Backward & Optimizer
         scaler.scale(loss).backward()
+        
+        # Gradient clipping để tránh exploding gradients
+        scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        
         scaler.step(optimizer)
         scaler.update()
         
@@ -236,14 +243,17 @@ def main():
         # Tính pos_weight từ concept columns
         concept_values = torch.tensor(df_agg[concept_cols].values, dtype=torch.float32)
         pos_weight = (concept_values == 0).sum(dim=0) / (concept_values == 1).sum(dim=0).clamp(min=1)
-        print(f"Pos weights range: {pos_weight.min():.2f} - {pos_weight.max():.2f}")
+        # Clip pos_weight để tránh loss quá extreme (max 10x)
+        pos_weight = pos_weight.clamp(max=10.0)
+        print(f"Pos weights range: {pos_weight.min():.2f} - {pos_weight.max():.2f} (clipped to max 10)")
     else:
         # Các rank khác dùng uniform weights (sẽ được broadcast từ rank 0)
         pos_weight = torch.ones(num_concepts)
     
+    # Stage 1: Learning rate thấp hơn để ổn định, nhất là khi dùng pos_weight
     optimizer = optim.AdamW([
-        {'params': model.module.backbone.parameters(), 'lr': args.lr * 0.1}, # Backbone học chậm
-        {'params': model.module.concept_head.parameters(), 'lr': args.lr}
+        {'params': model.module.backbone.parameters(), 'lr': args.lr * 0.01}, # Backbone học rất chậm
+        {'params': model.module.concept_head.parameters(), 'lr': args.lr * 0.1}  # Concept head cũng thận trọng
     ])
     criterion_s1 = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight.to(device))
     
