@@ -93,7 +93,14 @@ class CSRDataset(Dataset):
             'image_id': image_id
         }
 
-def get_dataloaders(train_csv, test_csv, train_dir, test_dir, batch_size=32):
+def get_dataloaders(train_csv, test_csv, train_dir, test_dir, batch_size=32, rank=0, world_size=1):
+    """
+    Get dataloaders with DDP support.
+    
+    Args:
+        rank: Current GPU rank (0, 1, ...)
+        world_size: Total number of GPUs (1 for single GPU)
+    """
     # Augmentation cho MedMAE (Input 224x224)
     train_transform = transforms.Compose([
         transforms.RandomHorizontalFlip(),
@@ -111,7 +118,58 @@ def get_dataloaders(train_csv, test_csv, train_dir, test_dir, batch_size=32):
     train_dataset = CSRDataset(train_csv, train_dir, phase='train', transform=train_transform)
     test_dataset = CSRDataset(test_csv, test_dir, phase='test', transform=val_transform)
     
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)  # Giữ workers alive giữa các epochs)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True, persistent_workers=True)
+    # DistributedSampler cho DDP
+    from torch.utils.data.distributed import DistributedSampler
     
-    return train_loader, test_loader, len(train_dataset.concept_names), len(train_dataset.target_names)
+    if world_size > 1:
+        # Multi-GPU: Dùng DistributedSampler để chia data
+        train_sampler = DistributedSampler(
+            train_dataset, 
+            num_replicas=world_size, 
+            rank=rank,
+            shuffle=True,
+            drop_last=True  # Tránh incomplete batch gây lỗi DDP
+        )
+        test_sampler = DistributedSampler(
+            test_dataset,
+            num_replicas=world_size,
+            rank=rank,
+            shuffle=False
+        )
+        
+        train_loader = DataLoader(
+            train_dataset, 
+            batch_size=batch_size,
+            sampler=train_sampler,  # Dùng sampler thay vì shuffle
+            num_workers=4,
+            pin_memory=True,
+            persistent_workers=True
+        )
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=batch_size,
+            sampler=test_sampler,
+            num_workers=4,
+            pin_memory=True,
+            persistent_workers=True
+        )
+    else:
+        # Single GPU: Không cần DistributedSampler
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=4,
+            pin_memory=True,
+            persistent_workers=True
+        )
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=4,
+            pin_memory=True,
+            persistent_workers=True
+        )
+    
+    return train_loader, test_loader, len(train_dataset.concept_names), len(train_dataset.target_names), train_sampler if world_size > 1 else None

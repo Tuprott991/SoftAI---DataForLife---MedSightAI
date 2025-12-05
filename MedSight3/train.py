@@ -166,13 +166,17 @@ def main():
         print(f"Output directory: {output_dir}")
     
     # 1. Prepare Data
-    train_loader, test_loader, num_concepts, num_classes = get_dataloaders(
+    train_loader, test_loader, num_concepts, num_classes, train_sampler = get_dataloaders(
         args.train_csv, args.test_csv, args.train_dir, args.test_dir, 
-        batch_size=args.batch_size
+        batch_size=args.batch_size,
+        rank=rank,
+        world_size=world_size
     )
     if rank == 0:
         print(f"Data Loaded: {num_concepts} Concepts, {num_classes} Diseases")
         print(f"World Size: {world_size}, Batch Size per GPU: {args.batch_size}")
+        if world_size > 1:
+            print(f"✅ DDP enabled: Each GPU trains on {len(train_loader.dataset) // world_size} samples")
 
     # 2. Model Init (Dùng MedMAE backbone)
     model = CSR(
@@ -242,6 +246,10 @@ def main():
     criterion_s1 = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight.to(device))
     
     for epoch in range(args.epochs_stage1):
+        # Set epoch for DistributedSampler to shuffle differently each epoch
+        if train_sampler is not None:
+            train_sampler.set_epoch(epoch)
+        
         loss = train_one_epoch(model, train_loader, optimizer, criterion_s1, stage=1, scaler=scaler, device=device, rank=rank)
         if rank == 0:
             print(f"Epoch {epoch+1}: Train Loss {loss:.4f}")
@@ -276,6 +284,10 @@ def main():
     criterion_s2 = PrototypeContrastiveLoss(temperature=0.1) # Custom Loss
     
     for epoch in range(args.epochs_stage2):
+        # Set epoch for proper shuffling
+        if train_sampler is not None:
+            train_sampler.set_epoch(epoch)
+        
         loss = train_one_epoch(model, train_loader, optimizer, criterion_s2, stage=2, scaler=scaler, device=device, rank=rank)
         if rank == 0:
             print(f"Epoch {epoch+1}: Loss {loss:.4f}")
@@ -299,6 +311,10 @@ def main():
     criterion_s3 = torch.nn.BCEWithLogitsLoss() # Nếu target là multi-label
     
     for epoch in range(args.epochs_stage3):
+        # Set epoch for proper shuffling
+        if train_sampler is not None:
+            train_sampler.set_epoch(epoch)
+        
         loss = train_one_epoch(model, train_loader, optimizer, criterion_s3, stage=3, scaler=scaler, device=device, rank=rank)
         if rank == 0:
             print(f"Epoch {epoch+1}: Train Loss {loss:.4f}")
