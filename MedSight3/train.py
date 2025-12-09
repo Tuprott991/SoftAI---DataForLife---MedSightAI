@@ -479,14 +479,15 @@ def main():
     # ====================================================
     if rank == 0:
         print("\n--- START STAGE 2: Prototype Learning ---")
+        print(f"  Stage 2 Learning Rate: {args.lr * 10:.6f} (10x Stage 1)")
     # Freeze Backbone & Concept Head
     for param in model.module.backbone.parameters(): param.requires_grad = False
     for param in model.module.concept_head.parameters(): param.requires_grad = False
     
-    # Chỉ train Projector và Prototypes
+    # Chỉ train Projector và Prototypes with 10x learning rate
     optimizer = optim.AdamW([
-        {'params': model.module.projector.parameters(), 'lr': args.lr},
-        {'params': model.module.prototypes, 'lr': args.lr}
+        {'params': model.module.projector.parameters(), 'lr': args.lr * 10},
+        {'params': model.module.prototypes, 'lr': args.lr * 10}
     ])
     criterion_s2 = PrototypeContrastiveLoss(temperature=0.1) # Custom Loss
     
