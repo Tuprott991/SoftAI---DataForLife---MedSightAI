@@ -284,7 +284,7 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
                             title="Draw Bounding Box"
                         >
                             <Pencil className="w-3.5 h-3.5" />
-                            <span>Vẽ</span>
+                            <span>{t('studentDetail.imageTools.draw')}</span>
                         </button>
 
                         {boxes.length > 0 && (
@@ -294,7 +294,7 @@ export const ImageInteractiveSection = ({ caseData, onAnnotationsChange }) => {
                                 title="Delete All Annotations"
                             >
                                 <Trash2 className="w-3.5 h-3.5" />
-                                <span>Xóa tất cả</span>
+                                <span>{t('studentDetail.imageTools.deleteAll')}</span>
                             </button>
                         )}
                     </div>

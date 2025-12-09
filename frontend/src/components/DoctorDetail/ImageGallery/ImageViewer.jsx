@@ -733,7 +733,7 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal, onSimilarCa
                                             {index === 0 ? (
                                                 // Left image label - xAI
                                                 <span className="text-sm font-semibold text-teal-400">
-                                                    {comparisonImages ? 'Ảnh của bệnh nhân' : 'xAI'}
+                                                    {comparisonImages ? t('imageViewer.patientImage') : 'xAI'}
                                                 </span>
                                             ) : (img.original && img.prototype) ? (
                                                 // Right image label - Original | Prototype toggle (when img has original and prototype properties)
@@ -741,8 +741,8 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal, onSimilarCa
                                                     <button
                                                         onClick={() => setShowPrototype(false)}
                                                         className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${!showPrototype
-                                                                ? 'bg-amber-500 text-white'
-                                                                : 'text-amber-400 hover:bg-amber-500/20'
+                                                            ? 'bg-amber-500 text-white'
+                                                            : 'text-amber-400 hover:bg-amber-500/20'
                                                             }`}
                                                     >
                                                         Original
@@ -751,8 +751,8 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal, onSimilarCa
                                                     <button
                                                         onClick={() => setShowPrototype(true)}
                                                         className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${showPrototype
-                                                                ? 'bg-amber-500 text-white'
-                                                                : 'text-amber-400 hover:bg-amber-500/20'
+                                                            ? 'bg-amber-500 text-white'
+                                                            : 'text-amber-400 hover:bg-amber-500/20'
                                                             }`}
                                                     >
                                                         Prototype
@@ -761,7 +761,7 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal, onSimilarCa
                                             ) : (
                                                 // Similar case comparison label
                                                 <span className="text-sm font-semibold text-amber-400">
-                                                    Ca bệnh tương đồng
+                                                    {t('imageViewer.similarCase')}
                                                 </span>
                                             )}
 
@@ -978,10 +978,10 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal, onSimilarCa
                 isOpen={confirmDelete}
                 onClose={handleCancelDelete}
                 onConfirm={handleConfirmDelete}
-                title="Xóa vùng khoanh"
-                message="Bạn có chắc chắn muốn xóa vùng khoanh này không?"
-                confirmText="Xóa"
-                cancelText="Hủy"
+                title={t('imageViewer.deleteRegion')}
+                message={t('imageViewer.deleteConfirm')}
+                confirmText={t('imageViewer.delete')}
+                cancelText={t('imageViewer.cancel')}
                 confirmColor="red"
             />
         </div>
