@@ -107,10 +107,10 @@ batch = {
 
 ```python
 # Backbone (frozen)
-f = model.backbone(images)  # (B, 768, 7, 7)
+f = model.backbone(images)  # (B, 768, 14, 14)
 
 # Concept Head (frozen, already trained in Stage 1)
-cams = model.concept_head(f)  # (B, 22, 7, 7)
+cams = model.concept_head(f)  # (B, 22, 14, 14)
 ```
 
 **CAMs are now reliable** because they were trained in Stage 1!
@@ -127,17 +127,17 @@ local_vectors = model.get_local_concept_vectors(f, cams)  # (B, 22, 768)
 
 ```python
 def get_local_concept_vectors(self, f, cams):
-    B, K, H, W = cams.size()  # (B, 22, 7, 7)
+    B, K, H, W = cams.size()  # (B, 22, 14, 14)
     C_feat = f.size(1)         # 768
     
     # Step 3a: Spatial Softmax on CAMs
     # Normalize CAMs to create attention weights
-    cams_flat = cams.view(B, K, -1)  # (B, 22, 49)
+    cams_flat = cams.view(B, K, -1)  # (B, 22, 196)
     attn_weights = F.softmax(cams_flat, dim=-1)  # Sum to 1 across spatial locations
     
     # Step 3b: Weighted sum of features
     # For each concept k, extract features from regions where CAM[k] is high
-    f_flat = f.view(B, C_feat, -1)  # (B, 768, 49)
+    f_flat = f.view(B, C_feat, -1)  # (B, 768, 196)
     
     # Einstein summation: weighted average over spatial locations
     # local_vectors[b, k, c] = Σᵢ f[b, c, i] × attn_weights[b, k, i]
@@ -439,8 +439,8 @@ targets[0] = [0, 0, 1, 0, 0, 0]  # Pneumonia present
 
 ```python
 # All frozen from previous stages
-f = model.backbone(images)           # (B, 768, 7, 7)
-f_proj = model.projector(f)          # (B, 128, 7, 7)
+f = model.backbone(images)           # (B, 768, 14, 14)
+f_proj = model.projector(f)          # (B, 128, 14, 14)
 ```
 
 ### **Step 3: Compute Similarity Maps**
@@ -451,11 +451,11 @@ f_proj_norm = F.normalize(f_proj, p=2, dim=1)      # (B, 128, 7, 7)
 prototypes_norm = F.normalize(model.prototypes, p=2, dim=1)  # (110, 128, 1, 1)
 
 # Compute similarity at each spatial location
-similarity_maps = F.conv2d(f_proj_norm, prototypes_norm)  # (B, 110, 7, 7)
+similarity_maps = F.conv2d(f_proj_norm, prototypes_norm)  # (B, 110, 14, 14)
 ```
 
 **What happens:**
-- For each spatial location (x, y) in the 7×7 grid:
+- For each spatial location (x, y) in the 14×14 grid:
   - Feature vector: `f_proj[b, :, y, x]` (128-dim)
   - Compare with ALL 110 prototypes
   - Result: 110 similarity values
@@ -477,7 +477,7 @@ Max = 0.9 → Strong match!
 ### **Step 4: Pool to Similarity Scores**
 
 ```python
-similarity_scores = F.max_pool2d(similarity_maps, kernel_size=(7, 7))  # (B, 110)
+similarity_scores = F.max_pool2d(similarity_maps, kernel_size=(14, 14))  # (B, 110)
 similarity_scores = similarity_scores.view(B, -1)
 ```
 
@@ -890,10 +890,10 @@ outputs = model(image, importance_map=importance_map)
 outputs = {
     'logits': (B, 6),              # Disease predictions (raw scores)
     'similarity_scores': (B, 110),  # Similarity to each prototype
-    'similarity_maps': (B, 110, 7, 7),  # Spatial similarity maps
-    'cams': (B, 22, 7, 7),         # Concept activation maps
-    'features': (B, 768, 7, 7),    # Backbone features
-    'projected_features': (B, 128, 7, 7)  # Projected features
+    'similarity_maps': (B, 110, 14, 14),  # Spatial similarity maps
+    'cams': (B, 22, 14, 14),         # Concept activation maps
+    'features': (B, 768, 14, 14),    # Backbone features
+    'projected_features': (B, 128, 14, 14)  # Projected features
 }
 ```
 

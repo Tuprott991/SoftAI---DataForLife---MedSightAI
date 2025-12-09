@@ -89,13 +89,13 @@ batch = {
 ### **Step 2: Feature Extraction (Backbone)**
 
 ```python
-f = model.backbone(images)  # (B, 768, 7, 7)
+f = model.backbone(images)  # (B, 768, 14, 14)
 ```
 
 **What happens:**
 - MedMAE (ViT-Base) processes 224×224 image
-- Outputs feature maps: **768 channels × 7×7 spatial grid**
-- Each 7×7 location has receptive field of ~32×32 pixels in original image
+- Outputs feature maps: **768 channels × 14×14 spatial grid**
+- Each 14×14 location has receptive field of ~16×16 pixels in original image (patch size)
 - Features encode high-level semantic information
 
 **Learning rate:** Very slow (`lr * 0.01`) to preserve pre-trained medical knowledge
@@ -103,7 +103,7 @@ f = model.backbone(images)  # (B, 768, 7, 7)
 ### **Step 3: Generate Concept Activation Maps**
 
 ```python
-cams = model.concept_head(f)  # (B, 22, 7, 7)
+cams = model.concept_head(f)  # (B, 22, 14, 14)
 ```
 
 **What happens:**
@@ -118,13 +118,9 @@ cams = model.concept_head(f)  # (B, 22, 7, 7)
 
 **Example CAM for "Cardiomegaly":**
 ```
-CAM[0, 4] =  [[-0.3, -0.1,  0.2,  0.1, -0.2, -0.3, -0.4],
-              [-0.2,  0.3,  0.8,  0.7,  0.2, -0.1, -0.3],
-              [ 0.1,  0.6,  1.5,  1.3,  0.5,  0.0, -0.2],
-              [ 0.0,  0.7,  1.8,  1.6,  0.6,  0.1, -0.1],
-              [-0.1,  0.4,  1.2,  1.0,  0.3, -0.1, -0.2],
-              [-0.3,  0.0,  0.4,  0.3, -0.1, -0.3, -0.4],
-              [-0.4, -0.2,  0.1,  0.0, -0.3, -0.4, -0.5]]
+CAM[0, 4] = 14×14 heatmap showing heart region
+  Center rows (6-9) have highest activations (1.5-1.8)
+  Edges have low/negative values (-0.4 to 0.2)
 ```
 → Peak at center (3, 3) where heart is located! ❤️
 

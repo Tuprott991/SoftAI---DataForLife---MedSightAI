@@ -18,17 +18,17 @@ from PIL import Image
 def process_single_dicom(args):
     """
     Xử lý 1 file DICOM thành PNG.
-    Args: tuple (dicom_path, output_path)
+    Args: tuple (dicom_path, output_path, target_size)
     """
-    dicom_path, output_path = args
+    dicom_path, output_path, target_size = args
     
     try:
         # Kiểm tra nếu output đã tồn tại → skip
         if os.path.exists(output_path):
             return True, None
         
-        # Đọc và xử lý DICOM
-        img = dicom_to_image(dicom_path, size=(224, 224))
+        # Đọc và xử lý DICOM với target size
+        img = dicom_to_image(dicom_path, size=target_size)
         
         # Lưu thành PNG (hoặc JPG nếu muốn tiết kiệm dung lượng)
         img.save(output_path, 'PNG', optimize=True)
@@ -37,7 +37,7 @@ def process_single_dicom(args):
     except Exception as e:
         return False, f"{dicom_path}: {str(e)}"
 
-def preprocess_dataset(input_dir, output_dir, csv_file=None, num_workers=None, format='png'):
+def preprocess_dataset(input_dir, output_dir, csv_file=None, num_workers=None, format='png', size=224):
     """
     Preprocess toàn bộ dataset DICOM thành PNG/JPG.
     
@@ -47,6 +47,7 @@ def preprocess_dataset(input_dir, output_dir, csv_file=None, num_workers=None, f
         csv_file: File CSV chứa danh sách image_id (optional, nếu None sẽ process tất cả)
         num_workers: Số CPU cores dùng (None = auto detect)
         format: 'png' hoặc 'jpg'
+        size: Target size for resizing (default: 224)
     """
     # Create output directory
     Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -59,6 +60,7 @@ def preprocess_dataset(input_dir, output_dir, csv_file=None, num_workers=None, f
     print(f"📂 Input: {input_dir}")
     print(f"📂 Output: {output_dir}")
     print(f"🎨 Format: {format.upper()}")
+    print(f"📐 Target size: {size}x{size}")
     
     # Lấy danh sách files cần xử lý
     if csv_file and os.path.exists(csv_file):
@@ -87,7 +89,7 @@ def preprocess_dataset(input_dir, output_dir, csv_file=None, num_workers=None, f
             continue
         
         output_path = Path(output_dir) / f"{img_id}.{format}"
-        tasks.append((str(dicom_path), str(output_path)))
+        tasks.append((str(dicom_path), str(output_path), (size, size)))
     
     print(f"📦 Total tasks: {len(tasks)}")
     
@@ -149,6 +151,8 @@ def main():
                         help='Number of CPU workers (default: auto)')
     parser.add_argument('--format', type=str, default='png', choices=['png', 'jpg'],
                         help='Output format: png or jpg (default: png)')
+    parser.add_argument('--size', type=int, default=224,
+                        help='Target size for resizing (default: 224)')
     
     args = parser.parse_args()
     
@@ -157,7 +161,8 @@ def main():
         output_dir=args.output_dir,
         csv_file=args.csv_file,
         num_workers=args.num_workers,
-        format=args.format
+        format=args.format,
+        size=args.size
     )
 
 if __name__ == '__main__':

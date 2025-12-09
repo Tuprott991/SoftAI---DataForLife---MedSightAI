@@ -54,7 +54,7 @@ def visualize_concept_heatmaps(model, image_path, concept_names=None, save_dir='
     fig, axes = plt.subplots(rows, cols, figsize=(4*cols, 4*rows))
     axes = axes.flatten() if K > 1 else [axes]
     
-    for k in range(K):
+    for k in range(K):  
         ax = axes[k]
         
         # Show original image
