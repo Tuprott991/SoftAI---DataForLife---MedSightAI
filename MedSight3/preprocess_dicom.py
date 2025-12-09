@@ -19,18 +19,34 @@ import cv2
 def process_single_dicom(args):
     """
     Xử lý 1 file DICOM thành PNG.
-    Args: tuple (dicom_path, output_path, target_size)
+    Args: tuple (dicom_path, output_path, target_size, image_id)
+    Returns: tuple (success, error_msg, resize_info)
+        resize_info: dict with image_id, original_height, original_width, resize_factor_h, resize_factor_w
     """
-    dicom_path, output_path, target_size = args
+    dicom_path, output_path, target_size, image_id = args
     
     try:
-        # Kiểm tra nếu output đã tồn tại → skip
-        if os.path.exists(output_path):
-            return True, None
-        
-        # Đọc DICOM file
+        # Kiểm tra nếu output đã tồn tại → skip (nhưng vẫn cần lấy resize info)
         dicom = pydicom.dcmread(dicom_path)
         pixel_array = dicom.pixel_array
+        
+        # Lưu original size
+        original_h, original_w = pixel_array.shape[:2]
+        
+        if os.path.exists(output_path):
+            # File đã tồn tại, chỉ trả về resize info
+            resize_factor_h = target_size[1] / original_h
+            resize_factor_w = target_size[0] / original_w
+            resize_info = {
+                'image_id': image_id,
+                'original_height': original_h,
+                'original_width': original_w,
+                'target_height': target_size[1],
+                'target_width': target_size[0],
+                'resize_factor_h': resize_factor_h,
+                'resize_factor_w': resize_factor_w
+            }
+            return True, None, resize_info
         
         # Photometric Interpretation handling (quan trọng cho X-Ray)
         if dicom.PhotometricInterpretation == "MONOCHROME1":
@@ -47,9 +63,23 @@ def process_single_dicom(args):
         # Save PNG
         cv2.imwrite(output_path, img)
         
-        return True, None
+        # Calculate resize factors
+        resize_factor_h = target_size[1] / original_h
+        resize_factor_w = target_size[0] / original_w
+        
+        resize_info = {
+            'image_id': image_id,
+            'original_height': original_h,
+            'original_width': original_w,
+            'target_height': target_size[1],
+            'target_width': target_size[0],
+            'resize_factor_h': resize_factor_h,
+            'resize_factor_w': resize_factor_w
+        }
+        
+        return True, None, resize_info
     except Exception as e:
-        return False, f"{dicom_path}: {str(e)}"
+        return False, f"{dicom_path}: {str(e)}", None
 
 def preprocess_dataset(input_dir, output_dir, csv_file=None, num_workers=None, format='png', size=224):
     """
@@ -103,7 +133,7 @@ def preprocess_dataset(input_dir, output_dir, csv_file=None, num_workers=None, f
             continue
         
         output_path = Path(output_dir) / f"{img_id}.{format}"
-        tasks.append((str(dicom_path), str(output_path), (size, size)))
+        tasks.append((str(dicom_path), str(output_path), (size, size), img_id))
     
     print(f"📦 Total tasks: {len(tasks)}")
     
@@ -111,6 +141,7 @@ def preprocess_dataset(input_dir, output_dir, csv_file=None, num_workers=None, f
     success_count = 0
     error_count = 0
     errors = []
+    resize_data = []
     
     with Pool(processes=num_workers) as pool:
         results = list(tqdm(
@@ -120,10 +151,12 @@ def preprocess_dataset(input_dir, output_dir, csv_file=None, num_workers=None, f
             unit="images"
         ))
     
-    # Đếm kết quả
-    for success, error_msg in results:
+    # Đếm kết quả và thu thập resize info
+    for success, error_msg, resize_info in results:
         if success:
             success_count += 1
+            if resize_info:
+                resize_data.append(resize_info)
         else:
             error_count += 1
             if error_msg:
@@ -138,6 +171,14 @@ def preprocess_dataset(input_dir, output_dir, csv_file=None, num_workers=None, f
             print(f"  - {error}")
     
     print(f"\n🎉 Done! Output saved to: {output_dir}")
+    
+    # Lưu resize factors vào CSV
+    if resize_data:
+        resize_csv_path = Path(output_dir) / 'resize_factors.csv'
+        resize_df = pd.DataFrame(resize_data)
+        resize_df.to_csv(resize_csv_path, index=False)
+        print(f"📊 Resize factors saved to: {resize_csv_path}")
+        print(f"   Columns: {list(resize_df.columns)}")
     
     # Tính dung lượng tiết kiệm
     if success_count > 0:
