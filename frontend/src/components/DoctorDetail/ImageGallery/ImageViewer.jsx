@@ -667,7 +667,7 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal, onSimilarCa
                                 ? 'bg-blue-500 text-white'
                                 : 'text-gray-400 hover:text-white hover:bg-white/10'
                                 }`}
-                            title="Di Chuyển Ảnh"
+                            title={t('doctorDetail.imageViewer.panImage')}
                         >
                             <Hand className="w-4 h-4" />
                         </button>
@@ -690,13 +690,13 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal, onSimilarCa
                             ? 'bg-white/5 hover:bg-white/10 border border-white/10 hover:border-teal-500/50 text-gray-300 hover:text-white cursor-pointer'
                             : 'bg-white/5 border border-white/10 text-gray-600 cursor-not-allowed opacity-50'
                             }`}
-                        title={isMultipleImages ? "Quay lại hình ảnh gốc" : "Chỉ khả dụng khi xem 2 ảnh"}
+                        title={isMultipleImages ? t('doctorDetail.imageViewer.backToOriginal') : t('doctorDetail.imageViewer.availableWhenTwoImages')}
                     >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
-                        <span>Hình Ảnh Gốc</span>
+                        <span>{t('doctorDetail.imageViewer.originalImage')}</span>
                     </button>
                 </div>
             </div>
@@ -770,7 +770,7 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal, onSimilarCa
                                                 <button
                                                     onClick={() => setIsPrototypeCollapsed(!isPrototypeCollapsed)}
                                                     className="absolute right-2 p-1 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors"
-                                                    title="Ẩn panel phải"
+                                                    title={t('doctorDetail.imageViewer.hideRightPanel')}
                                                 >
                                                     <PanelRightClose className="w-4 h-4" />
                                                 </button>
@@ -779,7 +779,7 @@ export const ImageViewer = ({ image, patientInfo, onRestoreOriginal, onSimilarCa
                                                 <button
                                                     onClick={() => setIsPrototypeCollapsed(false)}
                                                     className="absolute right-2 p-1 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors"
-                                                    title="Hiện panel phải"
+                                                    title={t('doctorDetail.imageViewer.showRightPanel')}
                                                 >
                                                     <PanelRight className="w-4 h-4" />
                                                 </button>

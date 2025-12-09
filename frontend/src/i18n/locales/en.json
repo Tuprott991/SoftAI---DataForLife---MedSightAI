@@ -15,6 +15,9 @@
     "logout": "Logout",
     "pacsSettings": "PACS/VNA Settings"
   },
+  "navigation": {
+    "scrollToTop": "Scroll to Top"
+  },
   "home": {
     "hero": {
       "badge": "AI-Powered Healthcare Platform",
@@ -193,6 +196,12 @@
       "clinicalFindings": "Clinical Findings",
       "aiAnalysis": "AI Analysis",
       "recommendations": "Recommendations"
+    },
+    "imageViewer": {
+      "panImage": "Pan/Move Image",
+      "backToOriginal": "Back to Original Image",
+      "availableWhenTwoImages": "Only Available When Viewing 2 Images",
+      "originalImage": "Original Image"
     }
   },
   "studentDetail": {
@@ -225,9 +234,18 @@
     },
     "imageTools": {
       "draw": "Draw",
-      "deleteAll": "Delete All"
+      "deleteAll": "Delete All",
+      "zoomOut": "Zoom Out",
+      "zoomIn": "Zoom In",
+      "undo": "Undo",
+      "redo": "Redo",
+      "move": "Move",
+      "panMove": "Pan/Move Image",
+      "drawBox": "Draw Bounding Box",
+      "deleteAllAnnotations": "Delete All Annotations"
     },
     "feedback": {
+      "dragImageToCompare": "Drag this image to the display frame to compare",
       "noAnnotations": "No lesion annotations detected.",
       "diagnosisSubmitted": "Diagnosis submitted:",
       "requireAnnotation": "Requirement: Use drawing tools to accurately locate abnormal areas on the X-ray before submitting.",
@@ -442,7 +460,11 @@
     "all": "All",
     "none": "None",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "reset": "Reset",
+    "zoomOut": "Zoom Out",
+    "zoomIn": "Zoom In",
+    "changeLanguage": "Change Language"
   },
   "diagnosis": {
     "tuberculosis": "Tuberculosis",
@@ -496,6 +518,7 @@
     "onlyAvailableForTwo": "Only available when viewing 2 images",
     "originalImage": "Original Image",
     "hideRightPanel": "Hide right panel",
+    "showRightPanel": "Show right panel",
     "deleteRegion": "Delete region",
     "delete": "Delete",
     "cancel": "Cancel",

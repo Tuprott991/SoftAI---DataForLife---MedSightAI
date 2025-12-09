@@ -15,6 +15,9 @@
     "logout": "Đăng Xuất",
     "pacsSettings": "Cài Đặt PACS/VNA"
   },
+  "navigation": {
+    "scrollToTop": "Lên Đầu Trang"
+  },
   "home": {
     "hero": {
       "badge": "Nền Tảng Chăm Sóc Sức Khỏe Với AI",
@@ -193,6 +196,12 @@
       "clinicalFindings": "Phát Hiện Lâm Sàng",
       "aiAnalysis": "Phân Tích AI",
       "recommendations": "Khuyến Nghị"
+    },
+    "imageViewer": {
+      "panImage": "Di Chuyển Ảnh",
+      "backToOriginal": "Quay Lại Hình Ảnh Gốc",
+      "availableWhenTwoImages": "Chỉ Khả Dụng Khi Xem 2 Ảnh",
+      "originalImage": "Hình Ảnh Gốc"
     }
   },
   "studentDetail": {
@@ -225,9 +234,18 @@
     },
     "imageTools": {
       "draw": "Vẽ",
-      "deleteAll": "Xóa tất cả"
+      "deleteAll": "Xóa tất cả",
+      "zoomOut": "Thu Nhỏ",
+      "zoomIn": "Phóng To",
+      "undo": "Hoàn Tác",
+      "redo": "Làm Lại",
+      "move": "Di Chuyển",
+      "panMove": "Di Chuyển Ảnh",
+      "drawBox": "Vẽ Khung Khoanh Vùng",
+      "deleteAllAnnotations": "Xóa Tất Cả Đánh Dấu"
     },
     "feedback": {
+      "dragImageToCompare": "Kéo ảnh này sang khung hiển thị để so sánh",
       "noAnnotations": "Không phát hiện vùng đánh dấu tổn thương.",
       "diagnosisSubmitted": "Chẩn đoán gửi lên:",
       "requireAnnotation": "Yêu cầu: Sử dụng công cụ vẽ để định vị chính xác các vùng bất thường trên phim chụp trước khi submit.",
@@ -442,7 +460,11 @@
     "all": "Tất cả",
     "none": "Không có",
     "yes": "Có",
-    "no": "Không"
+    "no": "Không",
+    "reset": "Đặt Lại",
+    "zoomOut": "Thu Nhỏ",
+    "zoomIn": "Phóng To",
+    "changeLanguage": "Đổi Ngôn Ngữ"
   },
   "diagnosis": {
     "tuberculosis": "Lao phổi",
@@ -496,6 +518,7 @@
     "onlyAvailableForTwo": "Chỉ khả dụng khi xem 2 ảnh",
     "originalImage": "Hình Ảnh Gốc",
     "hideRightPanel": "Ẩn panel phải",
+    "showRightPanel": "Hiện panel phải",
     "deleteRegion": "Xóa vùng khoanh",
     "delete": "Xóa",
     "cancel": "Hủy",

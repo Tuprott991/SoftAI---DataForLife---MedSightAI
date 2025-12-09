@@ -492,17 +492,17 @@ export const ChatbotSection = ({ annotations = [], caseData = null, submissionDa
                                                 )}
                                                 <img
                                                     src={img.url}
-                                                    alt={img.label || 'Kết quả thực tế'}
+                                                    alt={img.label || t('studentDetail.interactive.actualResult')}
                                                     draggable="true"
                                                     onDragStart={(e) => {
                                                         e.dataTransfer.setData('imageUrl', img.url);
-                                                        e.dataTransfer.setData('imageLabel', img.label || 'Kết quả thực tế');
+                                                        e.dataTransfer.setData('imageLabel', img.label || t('studentDetail.interactive.actualResult'));
                                                     }}
                                                     className="w-full h-auto cursor-move hover:opacity-80 transition-opacity"
-                                                    title="Kéo ảnh này sang khung hiển thị để so sánh"
+                                                    title={t('studentDetail.feedback.dragImageToCompare')}
                                                 />
                                                 <div className="bg-white/5 px-2 py-1 text-xs text-gray-400">
-                                                    Kéo sang khung ảnh để so sánh
+                                                    {t('studentDetail.feedback.dragImageToCompare')}
                                                 </div>
                                             </div>
                                         ))}
