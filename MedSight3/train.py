@@ -414,6 +414,10 @@ def main():
         import pandas as pd
         df_train = pd.read_csv(args.train_csv)
         
+        # IMPORTANT: Filter rare classes SAME as dataloader
+        from src.dataloader_bbox_simple import CSRDatasetWithBBoxSimple
+        RARE_CLASSES = CSRDatasetWithBBoxSimple.RARE_CLASSES
+        
         # Lấy concept columns (giống logic trong dataloader)
         meta_cols = ['image_id', 'rad_id']
         target_keywords = ['COPD', 'Lung tumor', 'Pneumonia', 'Tuberculosis', 'No finding']
@@ -429,14 +433,19 @@ def main():
                 target_cols.append(col)
         concept_cols = [c for c in df_train.columns if c not in target_cols + meta_cols]
         
+        # FILTER RARE CLASSES (same as dataloader)
+        concept_cols = [c for c in concept_cols if c not in RARE_CLASSES]
+        target_cols = [c for c in target_cols if c not in RARE_CLASSES]
+        
         # Aggregate như trong dataset
         df_agg = df_train.groupby('image_id')[concept_cols + target_cols].max().reset_index()
         
-        # Tính pos_weight từ concept columns
+        # Tính pos_weight từ concept columns (now filtered)
         concept_values = torch.tensor(df_agg[concept_cols].values, dtype=torch.float32)
         pos_weight = (concept_values == 0).sum(dim=0) / (concept_values == 1).sum(dim=0).clamp(min=1)
         # Clip pos_weight để tránh loss quá extreme (max 20x)
         pos_weight = pos_weight.clamp(max=20.0)
+        print(f"Pos weights for {len(concept_cols)} concepts (after filtering rare classes)")
         print(f"Pos weights range: {pos_weight.min():.2f} - {pos_weight.max():.2f} (clipped to max 20)")
     else:
         # Các rank khác dùng uniform weights (sẽ được broadcast từ rank 0)
@@ -559,10 +568,15 @@ def main():
     # Compute class distribution for balanced loss (only on rank 0)
     if rank == 0:
         print("Computing class distribution for Focal Loss...")
-        # Get target distribution from aggregated data
+        # Get target distribution from aggregated data (already filtered in Stage 1)
+        print(f"Using {len(target_cols)} target classes: {target_cols}")
         target_values = torch.tensor(df_agg[target_cols].values, dtype=torch.float32)
         samples_per_class = target_values.sum(dim=0)
         print(f"Samples per disease class: {samples_per_class.tolist()}")
+        
+        # Sanity check: ensure dimensions match
+        assert len(samples_per_class) == num_classes, \
+            f"Mismatch: samples_per_class has {len(samples_per_class)} but num_classes={num_classes}"
         
         # Compute class weights (inverse frequency, clamped)
         class_weights = len(df_agg) / (samples_per_class * num_classes).clamp(min=1)
