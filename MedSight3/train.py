@@ -407,37 +407,21 @@ def main():
     if rank == 0:
         print("\n--- START STAGE 1: Concept Learning ---")
     
+    # GET FILTERED COLUMNS DIRECTLY FROM DATALOADER (guaranteed to match!)
+    # These are used by both Stage 1 (pos_weight) and Stage 3 (class distribution)
+    concept_cols = train_loader.dataset.concept_cols
+    target_cols = train_loader.dataset.target_cols
+    
     # Tính pos_weight để xử lý class imbalance
     # Tính trực tiếp từ CSV thay vì load ảnh (nhanh hơn 100x)
     if rank == 0:
         print("Computing pos_weight for balanced BCE loss...")
         import pandas as pd
+        
+        print(f"Using columns from dataloader: {len(concept_cols)} concepts, {len(target_cols)} targets")
+        
+        # Load and aggregate CSV (using filtered columns from dataloader)
         df_train = pd.read_csv(args.train_csv)
-        
-        # IMPORTANT: Filter rare classes SAME as dataloader
-        from src.dataloader_bbox_simple import CSRDatasetWithBBoxSimple
-        RARE_CLASSES = CSRDatasetWithBBoxSimple.RARE_CLASSES
-        
-        # Lấy concept columns (giống logic trong dataloader)
-        meta_cols = ['image_id', 'rad_id']
-        target_keywords = ['COPD', 'Lung tumor', 'Pneumonia', 'Tuberculosis', 'No finding']
-        target_cols = []
-        for col in df_train.columns:
-            if col in meta_cols:
-                continue
-            if 'other' in col.lower():
-                if 'disease' in col.lower():
-                    target_cols.append(col)
-                continue
-            if any(keyword.lower() in col.lower() for keyword in target_keywords):
-                target_cols.append(col)
-        concept_cols = [c for c in df_train.columns if c not in target_cols + meta_cols]
-        
-        # FILTER RARE CLASSES (same as dataloader)
-        concept_cols = [c for c in concept_cols if c not in RARE_CLASSES]
-        target_cols = [c for c in target_cols if c not in RARE_CLASSES]
-        
-        # Aggregate như trong dataset
         df_agg = df_train.groupby('image_id')[concept_cols + target_cols].max().reset_index()
         
         # Tính pos_weight từ concept columns (now filtered)
@@ -445,11 +429,16 @@ def main():
         pos_weight = (concept_values == 0).sum(dim=0) / (concept_values == 1).sum(dim=0).clamp(min=1)
         # Clip pos_weight để tránh loss quá extreme (max 20x)
         pos_weight = pos_weight.clamp(max=20.0)
-        print(f"Pos weights for {len(concept_cols)} concepts (after filtering rare classes)")
+        print(f"Pos weights for {len(concept_cols)} concepts (from dataloader filtered columns)")
         print(f"Pos weights range: {pos_weight.min():.2f} - {pos_weight.max():.2f} (clipped to max 20)")
+        
+        # Sanity check: pos_weight must match num_concepts
+        assert pos_weight.shape[0] == num_concepts, f"pos_weight shape {pos_weight.shape[0]} != num_concepts {num_concepts}"
     else:
         # Các rank khác dùng uniform weights (sẽ được broadcast từ rank 0)
         pos_weight = torch.ones(num_concepts)
+        # Still need df_agg for other ranks (won't be used but prevents NameError)
+        df_agg = None
     
     # Stage 1: FIXED learning rates - previous were too low!
     # Backbone needs fine-tuning even with pretrained weights
