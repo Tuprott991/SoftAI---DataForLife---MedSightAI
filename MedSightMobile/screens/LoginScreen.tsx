@@ -14,6 +14,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { app } from '@/services/firebase';
+import { 
+  useOTPTimer, 
+  formatPhoneDisplay, 
+  getVietnameseAuthError,
+  validatePhoneNumber,
+  formatCountdown 
+} from '@/utils/otp-utils';
 
 // Safely import ReCAPTCHA with fallback
 let FirebaseRecaptchaVerifierModal: any = null;
@@ -38,16 +45,13 @@ export default function LoginScreen() {
   const [isPhoneValid, setIsPhoneValid] = useState(false);
   const otpInputRefs = useRef<RNTextInput[]>([]);
   const recaptchaVerifier = useRef(null);
-
-  // Validate phone number
-  const validatePhone = (phone: string) => {
-    const phoneRegex = /^(\+\d{1,3}|0)\d{9,10}$/;
-    return phoneRegex.test(phone.replace(/\s/g, ''));
-  };
+  
+  // OTP countdown timer for rate limiting
+  const { countdown, canResend, startCountdown } = useOTPTimer(60);
 
   const handlePhoneChange = (text: string) => {
     setPhoneNumber(text);
-    setIsPhoneValid(validatePhone(text));
+    setIsPhoneValid(validatePhoneNumber(text));
     if (error) setError(null);
   };
 
@@ -57,7 +61,7 @@ export default function LoginScreen() {
       
       // Check if ReCAPTCHA is available
       if (ReCAPTCHAAvailable && !recaptchaVerifier.current) {
-        Alert.alert('Error', 'ReCAPTCHA not ready. Please wait...');
+        Alert.alert('Lỗi', 'ReCAPTCHA chưa sẵn sàng. Vui lòng đợi...');
         return;
       }
       
@@ -70,10 +74,11 @@ export default function LoginScreen() {
       
       console.log('LoginScreen: OTP sent successfully, moving to OTP step');
       setStep('otp');
-      Alert.alert('Thành công', 'Mã OTP đã được gửi!');
+      startCountdown(); // Start 60s countdown for rate limiting
+      Alert.alert('Thành công', `Mã OTP đã được gửi đến ${formatPhoneDisplay(phoneNumber)}`);
     } catch (err: any) {
       console.error('LoginScreen: Error sending OTP:', err);
-      const errorMsg = err.message || 'Không thể gửi mã OTP';
+      const errorMsg = getVietnameseAuthError(err.code) || err.message || 'Không thể gửi mã OTP';
       setError(errorMsg);
       Alert.alert('Lỗi', errorMsg);
     }
@@ -226,7 +231,7 @@ export default function LoginScreen() {
                 Mã xác minh (6 chữ số)
               </Text>
               <Text variant="bodySmall" style={styles.infoText}>
-                Nhập mã xác minh được gửi đến {phoneNumber}
+                Nhập mã xác minh được gửi đến {formatPhoneDisplay(phoneNumber)}
               </Text>
 
               <View style={styles.otpContainer}>
@@ -286,16 +291,16 @@ export default function LoginScreen() {
 
               {/* Resend OTP */}
               <View style={styles.footer}>
-                <Text variant="bodySmall">Không nhận được mã? </Text>
+                <Text variant="bodySmall" style={styles.infoFooter}>Không nhận được mã? </Text>
                 <TouchableOpacity
                   onPress={handleSendOTP}
-                  disabled={isLoading}
+                  disabled={isLoading || !canResend}
                 >
                   <Text
                     variant="bodySmall"
-                    style={styles.linkText}
+                    style={[styles.linkText, (!canResend || isLoading) && styles.linkTextDisabled]}
                   >
-                    Gửi lại
+                    {canResend ? 'Gửi lại' : `Gửi lại sau ${formatCountdown(countdown)}`}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -435,6 +440,10 @@ const styles = StyleSheet.create({
     color: '#14B8A6',
     fontWeight: '600',
     textDecorationLine: 'underline',
+  },
+  linkTextDisabled: {
+    color: '#757575',
+    textDecorationLine: 'none',
   },
   infoFooter: {
     color: '#757575',

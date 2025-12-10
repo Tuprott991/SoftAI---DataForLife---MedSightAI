@@ -2,15 +2,15 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// Firebase configuration
+// Firebase configuration - MedSightMobile project
+// Android app sẽ tự động dùng google-services.json
 const firebaseConfig = {
-  apiKey: "AIzaSyD5t4hOFqy1EAw7VOcZXOJSY9ovgjERxHE",
-  authDomain: "wedai-dcecf.firebaseapp.com",
-  projectId: "wedai-dcecf",
-  storageBucket: "wedai-dcecf.firebasestorage.app",
-  messagingSenderId: "795123587676",
-  appId: "1:795123587676:web:4bf4ee979eafd6b57d2499",
-  measurementId: "G-XD6FBE6KZD"
+  apiKey: "AIzaSyAmn7xk4mWdq2I-N5umQk94CjcnS5fZNto",
+  authDomain: "medsightmobile.firebaseapp.com",
+  projectId: "medsightmobile",
+  storageBucket: "medsightmobile.firebasestorage.app",
+  messagingSenderId: "1044083966032",
+  appId: "1:1044083966032:android:758996eb9b68b7ec729155"
 };
 
 // Initialize Firebase

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { auth, db, app } from '@/services/firebase';
 import { signOut, onAuthStateChanged, PhoneAuthProvider, signInWithCredential } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection } from 'firebase/firestore';
+import { getVietnameseAuthError, normalizePhoneNumber } from '@/utils/otp-utils';
 
 // Mock storage for users (simulates Firestore for offline/testing)
 const mockUserDatabase: Record<string, any> = {};
@@ -140,13 +141,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setError(null);
       setIsLoading(true);
       
-      // Format phone number: remove leading 0, add +84
-      let formattedPhone = phone.trim();
-      if (formattedPhone.startsWith('0')) {
-        formattedPhone = '+84' + formattedPhone.slice(1);
-      } else if (!formattedPhone.startsWith('+')) {
-        formattedPhone = '+' + formattedPhone;
-      }
+      // Format phone number using utility function
+      const formattedPhone = normalizePhoneNumber(phone);
       
       console.log('Auth: Formatted phone:', formattedPhone);
       setPhoneNumber(formattedPhone);
@@ -184,15 +180,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.error('Auth: Error code:', err.code);
       console.error('Auth: Error message:', err.message);
       
-      // Provide user-friendly error messages
-      let errorMessage = err.message || 'Failed to send OTP';
-      if (err.code === 'auth/invalid-phone-number') {
-        errorMessage = 'Invalid phone number format';
-      } else if (err.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many requests. Please try again later.';
-      } else if (err.code === 'auth/operation-not-supported-in-this-environment') {
-        errorMessage = 'Phone authentication not supported in this environment';
-      }
+      // Use Vietnamese error messages
+      const errorMessage = getVietnameseAuthError(err.code) || err.message || 'Không thể gửi mã OTP';
       
       setError(errorMessage);
       setIsLoading(false);
@@ -266,13 +255,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.error('Auth: verifyOTP error:', err);
       console.error('Auth: Error code:', err.code);
       
-      // Provide user-friendly error messages
-      let errorMessage = err.message || 'Invalid OTP';
-      if (err.code === 'auth/invalid-verification-code') {
-        errorMessage = 'Invalid verification code. Please try again.';
-      } else if (err.code === 'auth/code-expired') {
-        errorMessage = 'Verification code has expired. Please request a new one.';
-      }
+      // Use Vietnamese error messages
+      const errorMessage = getVietnameseAuthError(err.code) || err.message || 'Mã OTP không hợp lệ';
       
       setError(errorMessage);
       setIsLoading(false);
