@@ -531,7 +531,7 @@ def main():
     
     # Load model
     print(f"Loading model from {args.checkpoint}")
-    model = CSR(K=args.K, M=args.M, num_classes=args.num_classes)
+    model = CSR(num_concepts=args.K, num_prototypes_per_concept=args.M, num_classes=args.num_classes)
     
     checkpoint = torch.load(args.checkpoint, map_location=device)
     if 'model_state_dict' in checkpoint:
