@@ -74,15 +74,17 @@ class BBoxGuidedConceptLoss(nn.Module):
                 x_min, y_min, x_max, y_max = bbox
                 mask = self._create_bbox_mask(H, W, x_min, y_min, x_max, y_max, device)
                 
-                # Inside bbox: CAM should be high (positive)
-                # Outside bbox: CAM should be low (negative or close to 0)
+                # Apply sigmoid to get activations in [0, 1] range
+                cam_sigmoid = torch.sigmoid(cam)  # (H, W)
+                
                 inside_mask = mask
                 outside_mask = 1 - mask
                 
-                # Loss: maximize CAM inside, minimize CAM outside
-                # Using hinge loss style: want cam > 0 inside, cam < 0 outside
-                inside_loss = F.relu(-cam * inside_mask).sum() / (inside_mask.sum() + 1e-6)
-                outside_loss = F.relu(cam * outside_mask).sum() / (outside_mask.sum() + 1e-6)
+                # FIXED: Inside bbox - want HIGH activation (close to 1)
+                # Outside bbox - want LOW activation (close to 0)
+                # Using MSE-style loss for clear targets
+                inside_loss = ((cam_sigmoid - 1.0) ** 2 * inside_mask).sum() / (inside_mask.sum() + 1e-6)
+                outside_loss = ((cam_sigmoid - 0.0) ** 2 * outside_mask).sum() / (outside_mask.sum() + 1e-6)
                 
                 loc_loss += inside_loss + outside_loss
                 num_boxes += 1

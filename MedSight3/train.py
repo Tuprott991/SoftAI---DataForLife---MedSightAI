@@ -131,6 +131,21 @@ def train_one_epoch(model, loader, optimizer, criterion, stage, scaler, device, 
         
         # Gradient clipping để tránh exploding gradients
         scaler.unscale_(optimizer)
+        
+        # Monitor gradients (every 10 batches)
+        if rank == 0 and len(loop.iterable) > 0:
+            batch_idx = loop.n
+            if batch_idx % 10 == 0:
+                total_norm = 0
+                for p in model.parameters():
+                    if p.grad is not None:
+                        total_norm += p.grad.data.norm(2).item() ** 2
+                total_norm = total_norm ** 0.5
+                if total_norm < 1e-7:
+                    print(f"\n⚠️ Vanishing gradients detected! Norm: {total_norm:.2e}")
+                elif total_norm > 100:
+                    print(f"\n⚠️ Exploding gradients detected! Norm: {total_norm:.2e}")
+        
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         
         scaler.step(optimizer)
@@ -426,10 +441,11 @@ def main():
         # Các rank khác dùng uniform weights (sẽ được broadcast từ rank 0)
         pos_weight = torch.ones(num_concepts)
     
-    # Stage 1: Learning rate thấp hơn để ổn định, nhất là khi dùng pos_weight
+    # Stage 1: FIXED learning rates - previous were too low!
+    # Backbone needs fine-tuning even with pretrained weights
     optimizer = optim.AdamW([
-        {'params': model.module.backbone.parameters(), 'lr': args.lr * 0.01}, # Backbone học rất chậm
-        {'params': model.module.concept_head.parameters(), 'lr': args.lr * 0.2}  # Concept head cũng thận trọng
+        {'params': model.module.backbone.parameters(), 'lr': args.lr * 0.1},  # 1e-5 (was 1e-6)
+        {'params': model.module.concept_head.parameters(), 'lr': args.lr}      # 1e-4 (was 2e-5)
     ])
     
     # Use BBoxGuidedConceptLoss if bboxes available, else standard BCE
@@ -489,7 +505,8 @@ def main():
         {'params': model.module.projector.parameters(), 'lr': args.lr * 10},
         {'params': model.module.prototypes, 'lr': args.lr * 10}
     ])
-    criterion_s2 = PrototypeContrastiveLoss(temperature=0.1) # Custom Loss
+    # FIXED: Increased temperature from 0.1 to 0.3 for more stable training
+    criterion_s2 = PrototypeContrastiveLoss(temperature=0.3) # Custom Loss
     
     for epoch in range(args.epochs_stage2):
         # Set epoch for proper shuffling
@@ -500,8 +517,28 @@ def main():
         if rank == 0:
             print(f"Epoch {epoch+1}: Loss {loss:.4f}")
             
-            # Save checkpoint
+            # ADDED: Monitor prototype quality every 5 epochs
             if epoch % 5 == 0 or epoch == args.epochs_stage2 - 1:
+                with torch.no_grad():
+                    # Check prototype diversity (should be high for good separation)
+                    protos = model.module.prototypes.squeeze(-1).squeeze(-1)  # (K*M, 128)
+                    protos_norm = F.normalize(protos, p=2, dim=1)
+                    
+                    # Compute pairwise cosine similarity
+                    similarity_matrix = torch.mm(protos_norm, protos_norm.t())
+                    
+                    # Remove diagonal (self-similarity)
+                    mask = ~torch.eye(len(protos), dtype=torch.bool, device=device)
+                    avg_similarity = similarity_matrix[mask].mean().item()
+                    max_similarity = similarity_matrix[mask].max().item()
+                    
+                    print(f"  Prototype Diversity: avg_sim={avg_similarity:.4f}, max_sim={max_similarity:.4f}")
+                    print(f"  (Want avg < 0.5 for good separation)")
+                    
+                    if avg_similarity > 0.8:
+                        print(f"  ⚠️ WARNING: Prototypes collapsing! Consider increasing temperature or LR.")
+                
+                # Save checkpoint
                 torch.save(model.module.state_dict(), output_dir / f'model_stage2_epoch{epoch+1}.pth')
         
     # ====================================================
