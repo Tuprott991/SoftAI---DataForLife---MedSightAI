@@ -33,7 +33,7 @@ import sys
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-from model import CSRModel
+from src.model import CSR
 
 
 def load_image(image_path, target_size=(224, 224)):
@@ -531,7 +531,7 @@ def main():
     
     # Load model
     print(f"Loading model from {args.checkpoint}")
-    model = CSRModel(K=args.K, M=args.M, num_classes=args.num_classes)
+    model = CSR(K=args.K, M=args.M, num_classes=args.num_classes)
     
     checkpoint = torch.load(args.checkpoint, map_location=device)
     if 'model_state_dict' in checkpoint:
