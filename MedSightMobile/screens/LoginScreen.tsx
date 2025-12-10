@@ -13,7 +13,6 @@ import { TextInput, Button, Text, ActivityIndicator, HelperText } from 'react-na
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
-import { app } from '@/services/firebase';
 import { 
   useOTPTimer, 
   formatPhoneDisplay, 
@@ -21,19 +20,7 @@ import {
   validatePhoneNumber,
   formatCountdown 
 } from '@/utils/otp-utils';
-
-// Safely import ReCAPTCHA with fallback
-let FirebaseRecaptchaVerifierModal: any = null;
-let ReCAPTCHAAvailable = true;
-try {
-  const module = require('expo-firebase-recaptcha');
-  FirebaseRecaptchaVerifierModal = module.FirebaseRecaptchaVerifierModal;
-} catch (err) {
-  console.warn('⚠️  ReCAPTCHA not available, using fallback verification');
-  ReCAPTCHAAvailable = false;
-  // Fallback: render nothing
-  FirebaseRecaptchaVerifierModal = () => null;
-}
+import { canSendOTP, getRateLimitInfo, resetRateLimit, formatTimeLeft } from '@/utils/rate-limiter';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -44,7 +31,6 @@ export default function LoginScreen() {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isPhoneValid, setIsPhoneValid] = useState(false);
   const otpInputRefs = useRef<RNTextInput[]>([]);
-  const recaptchaVerifier = useRef(null);
   
   // OTP countdown timer for rate limiting
   const { countdown, canResend, startCountdown } = useOTPTimer(60);
@@ -59,18 +45,22 @@ export default function LoginScreen() {
     try {
       console.log('LoginScreen: handleSendOTP called with phone:', phoneNumber);
       
-      // Check if ReCAPTCHA is available
-      if (ReCAPTCHAAvailable && !recaptchaVerifier.current) {
-        Alert.alert('Lỗi', 'ReCAPTCHA chưa sẵn sàng. Vui lòng đợi...');
+      // Check rate limit (5 lần/giờ)
+      if (!canSendOTP(phoneNumber, 5, 60 * 60 * 1000)) {
+        const info = getRateLimitInfo(phoneNumber);
+        Alert.alert(
+          'Đã gửi quá nhiều lần',
+          `Vui lòng thử lại sau ${formatTimeLeft(info.timeUntilReset)}\n\n` +
+          `Bạn chỉ có thể gửi OTP tối đa 5 lần trong 1 giờ.`
+        );
         return;
       }
       
       setError(null);
       console.log('LoginScreen: Sending OTP...');
       
-      // Pass recaptchaVerifier if available, otherwise pass null for fallback
-      const verifier = ReCAPTCHAAvailable ? recaptchaVerifier.current : null;
-      await sendOTP(phoneNumber, verifier);
+      // Send OTP without ReCAPTCHA (using test numbers or mock mode)
+      await sendOTP(phoneNumber, null);
       
       console.log('LoginScreen: OTP sent successfully, moving to OTP step');
       setStep('otp');
@@ -121,6 +111,10 @@ export default function LoginScreen() {
       console.log('LoginScreen: Verifying OTP code');
       await verifyOTP(otpCode);
       console.log('LoginScreen: OTP verified successfully');
+      
+      // Reset rate limit sau khi verify thành công
+      resetRateLimit(phoneNumber);
+      
       // Navigation will be handled by the auth state change
     } catch (err) {
       console.error('LoginScreen: Error verifying OTP:', err);
@@ -137,12 +131,6 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
-        {/* ReCAPTCHA Verifier Modal - REQUIRED for Firebase Phone Auth */}
-        <FirebaseRecaptchaVerifierModal
-          ref={recaptchaVerifier}
-          firebaseConfig={app.options}
-        />
-        
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* Medical/X-ray themed decorative overlay */}
           <View style={styles.decorativeOverlay}>

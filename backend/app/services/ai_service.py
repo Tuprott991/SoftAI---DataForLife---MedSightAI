@@ -7,6 +7,13 @@ import os
 from typing import Dict, Any, List, Tuple
 from fastapi import HTTPException
 from app.config.settings import settings
+import torch
+from transformers import AutoModel, AutoTokenizer, AutoImageProcessor
+import torch
+from PIL import Image
+import io
+
+
 
 # Add model paths to system path
 sys.path.append(os.path.abspath(settings.MODEL_INFERENCE_PATH))
@@ -136,28 +143,94 @@ class MedSigLipService:
     def __init__(self):
         """
         Initialize MedSigLip model
-        
-        TODO: Load MedSigLip model for text-image embedding
+        Loads model from HuggingFace: aysangh/medsiglip-448-vindr-bin
         """
-        pass
+        self.model = None
+        self.tokenizer = None
+        self.image_processor = None
+        self.device = None
+        self._initialized = False
     
-    def generate_image_embedding(self, image_path: str) -> List[float]:
+    def _lazy_load(self):
+        """Lazy load the model when first needed to save memory"""
+        if self._initialized:
+            return
+        
+        try:            
+            model_name = "aysangh/medsiglip-448-vindr-bin"
+            base_model = "google/siglip-base-patch16-224"
+            
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+            print(f"Loading MedSigLip model on {self.device}...")
+            
+            # Load tokenizer and image processor from base model first
+            self.tokenizer = AutoTokenizer.from_pretrained(base_model)
+            self.image_processor = AutoImageProcessor.from_pretrained(base_model)
+            
+            # Load the fine-tuned model
+            # This is a custom trained model, load it as a generic AutoModel
+            self.model = AutoModel.from_pretrained(
+                model_name,
+                trust_remote_code=True,
+                torch_dtype=torch.float16 if self.device == "cuda" else torch.float32
+            ).to(self.device)
+            
+            self.model.eval()  # Set to evaluation mode
+            
+            self._initialized = True
+            print("MedSigLip model loaded successfully")
+        except Exception as e:
+            print(f"Error loading MedSigLip model: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Failed to load MedSigLip model: {str(e)}"
+            )
+    
+    def generate_image_embedding(self, image_bytes: bytes) -> List[float]:
         """
         Generate image embedding using MedSigLip
         
         Args:
-            image_path: Path to image
+            image_bytes: Image data as bytes
         
         Returns:
-            Image embedding vector
-        
-        TODO: Implement MedSigLip image encoding
-        Example:
-            from medsigclip import MedSigClipModel
-            embedding = self.model.encode_image(image_path)
-            return embedding.tolist()
+            Image embedding vector (1152 dimensions)
         """
-        raise NotImplementedError("Implement MedSigLip image embedding")
+        self._lazy_load()
+        
+        try:            
+            # Load image from bytes
+            image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+            
+            # Process image
+            pixel_values = self.image_processor(
+                images=image,
+                return_tensors="pt",
+                size={"height": 448, "width": 448}
+            ).pixel_values.to(self.device)
+            
+            # Extract embedding
+            with torch.no_grad():
+                outputs = self.model.vision_model(pixel_values=pixel_values)
+                
+                # Get pooled output or first token
+                if hasattr(outputs, 'pooler_output'):
+                    embedding = outputs.pooler_output
+                elif hasattr(outputs, 'last_hidden_state'):
+                    embedding = outputs.last_hidden_state[:, 0]
+                else:
+                    embedding = outputs[0][:, 0]
+            
+            # Convert to list and return
+            return embedding.cpu().numpy()[0].tolist()
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to generate image embedding: {str(e)}"
+            )
     
     def generate_text_embedding(self, text: str) -> List[float]:
         """
@@ -167,32 +240,59 @@ class MedSigLipService:
             text: Medical text description
         
         Returns:
-            Text embedding vector
-        
-        TODO: Implement MedSigLip text encoding
-        Example:
-            from medsigclip import MedSigClipModel
-            embedding = self.model.encode_text(text)
-            return embedding.tolist()
+            Text embedding vector (1152 dimensions)
         """
-        raise NotImplementedError("Implement MedSigLip text embedding")
+        self._lazy_load()
+        
+        try:
+            import torch
+            
+            # Tokenize text
+            inputs = self.tokenizer(
+                text,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=77
+            ).to(self.device)
+            
+            # Extract embedding
+            with torch.no_grad():
+                outputs = self.model.text_model(**inputs)
+                
+                # Get pooled output or first token
+                if hasattr(outputs, 'pooler_output'):
+                    embedding = outputs.pooler_output
+                elif hasattr(outputs, 'last_hidden_state'):
+                    embedding = outputs.last_hidden_state[:, 0]
+                else:
+                    embedding = outputs[0][:, 0]
+            
+            # Convert to list and return
+            return embedding.cpu().numpy()[0].tolist()
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to generate text embedding: {str(e)}"
+            )
     
     def generate_embeddings(
         self,
-        image_path: str,
+        image_bytes: bytes,
         text: str
     ) -> Tuple[List[float], List[float]]:
         """
         Generate both image and text embeddings
         
         Args:
-            image_path: Path to image
+            image_bytes: Image data as bytes
             text: Medical text description
         
         Returns:
             Tuple of (image_embedding, text_embedding)
         """
-        image_emb = self.generate_image_embedding(image_path)
+        image_emb = self.generate_image_embedding(image_bytes)
         text_emb = self.generate_text_embedding(text)
         return image_emb, text_emb
 

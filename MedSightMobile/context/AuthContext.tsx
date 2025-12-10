@@ -147,33 +147,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.log('Auth: Formatted phone:', formattedPhone);
       setPhoneNumber(formattedPhone);
       
-      // If ReCAPTCHA not available, use mock OTP for development
-      if (!appVerifier) {
-        console.warn('⚠️  ReCAPTCHA not available - using mock OTP verification for development');
+      // Try to send real SMS via Firebase (works on real devices with Blaze Plan)
+      try {
+        const phoneProvider = new PhoneAuthProvider(auth);
+        console.log('Auth: Attempting to send SMS via Firebase PhoneAuthProvider...');
+        
+        // On Android with Google Play Services, this will use Play Integrity
+        // No ReCAPTCHA needed if SHA-256 is configured correctly
+        const verificationId = await phoneProvider.verifyPhoneNumber(
+          formattedPhone,
+          appVerifier // Can be null, Firebase will use Play Integrity on Android
+        );
+        
+        console.log('Auth: ✅ SMS sent successfully! Verification ID:', verificationId);
+        setVerificationId(verificationId);
+        setIsLoading(false);
+        
+        return verificationId;
+      } catch (firebaseErr: any) {
+        // If Firebase SMS fails, fallback to mock mode for testing
+        console.warn('⚠️  Firebase SMS failed, using mock OTP for development');
+        console.log('Auth: Firebase Error:', firebaseErr.code, firebaseErr.message);
         console.log('Auth: Test phone numbers: +84 945 876 079, +1 650-555-1234');
         console.log('Auth: Test OTP: 123456');
         
-        const mockVerificationId = 'mock-verification-' + Date.now();
-        setVerificationId(mockVerificationId);
-        setIsLoading(false);
+        // Only use mock mode for specific test numbers
+        const testNumbers = ['+84945876079', '+16505551234', '+84 945 876 079', '+1 650-555-1234'];
+        if (testNumbers.includes(formattedPhone) || testNumbers.includes(formattedPhone.replace(/\s/g, ''))) {
+          const mockVerificationId = 'mock-verification-' + Date.now();
+          setVerificationId(mockVerificationId);
+          setIsLoading(false);
+          return mockVerificationId;
+        }
         
-        return mockVerificationId;
+        // For real numbers, throw the error
+        throw firebaseErr;
       }
-      
-      // Call Firebase to send OTP via SMS
-      const phoneProvider = new PhoneAuthProvider(auth);
-      console.log('Auth: Sending OTP with Firebase PhoneAuthProvider...');
-      
-      const verificationId = await phoneProvider.verifyPhoneNumber(
-        formattedPhone,
-        appVerifier
-      );
-      
-      console.log('Auth: OTP sent successfully! Verification ID:', verificationId);
-      setVerificationId(verificationId);
-      setIsLoading(false);
-      
-      return verificationId;
       
     } catch (err: any) {
       console.error('Auth: sendOTP error:', err);
