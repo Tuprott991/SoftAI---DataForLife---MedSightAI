@@ -472,10 +472,46 @@ def visualize_results(original_image, results, concept_names, disease_names,
         plt.show()
 
 
+def load_concept_disease_names(csv_file):
+    """
+    Load concept and disease names from training CSV to match training order.
+    
+    Args:
+        csv_file: Path to training labels CSV
+    
+    Returns:
+        concept_names: List of concept names in training order
+        disease_names: List of disease names in training order
+    """
+    import pandas as pd
+    
+    df = pd.read_csv(csv_file)
+    
+    # Parse columns (same logic as dataloader)
+    meta_cols = ['image_id', 'rad_id']
+    target_keywords = ['COPD', 'Lung tumor', 'Pneumonia', 'Tuberculosis', 'No finding']
+    target_cols = []
+    
+    for col in df.columns:
+        if col in meta_cols:
+            continue
+        if 'other' in col.lower():
+            if 'disease' in col.lower():
+                target_cols.append(col)
+            continue
+        if any(keyword.lower() in col.lower() for keyword in target_keywords):
+            target_cols.append(col)
+    
+    concept_cols = [c for c in df.columns if c not in target_cols + meta_cols]
+    
+    return concept_cols, target_cols
+
+
 def main():
     parser = argparse.ArgumentParser(description='CSR Model Inference with Similarity Reasoning')
     parser.add_argument('--image', type=str, required=True, help='Path to input image (DICOM or PNG/JPG)')
     parser.add_argument('--checkpoint', type=str, required=True, help='Path to model checkpoint')
+    parser.add_argument('--labels_csv', type=str, required=True, help='Path to training labels CSV (to get concept/disease names)')
     parser.add_argument('--mode', type=str, default='full', 
                        choices=['full', 'cams_only', 'prototypes_only'],
                        help='Inference mode (default: full)')
@@ -516,6 +552,17 @@ def main():
     print(f"Running inference in mode: {args.mode}")
     results = inference(model, image_tensor, device, mode=args.mode)
     
+    # Load concept and disease names from training CSV (to match training order)
+    print(f"\nLoading concept/disease names from {args.labels_csv}")
+    concept_names, disease_names = load_concept_disease_names(args.labels_csv)
+    print(f"Loaded {len(concept_names)} concepts and {len(disease_names)} diseases")
+    
+    # Verify counts match
+    if len(concept_names) != args.K:
+        print(f"⚠️  Warning: CSV has {len(concept_names)} concepts but model expects {args.K}")
+    if len(disease_names) != args.num_classes:
+        print(f"⚠️  Warning: CSV has {len(disease_names)} diseases but model expects {args.num_classes}")
+    
     # Print results
     print("\n" + "="*60)
     print("INFERENCE RESULTS")
@@ -525,25 +572,24 @@ def main():
         print("\nConcept Predictions:")
         for i, prob in enumerate(results['concept_probs']):
             if prob > args.threshold:
-                print(f"  Concept {i}: {prob:.4f}")
+                name = concept_names[i] if i < len(concept_names) else f"Concept {i}"
+                print(f"  {name}: {prob:.4f}")
     
     if results.get('concept_similarity') is not None:
         print("\nConcept Similarity Scores (Max across prototypes):")
         for i, sim in enumerate(results['concept_similarity']):
             if sim > args.threshold:
-                print(f"  Concept {i}: {sim:.4f}")
+                name = concept_names[i] if i < len(concept_names) else f"Concept {i}"
+                print(f"  {name}: {sim:.4f}")
     
     if results['disease_probs'] is not None:
         print("\nDisease Predictions:")
         for i, prob in enumerate(results['disease_probs']):
             if prob > args.threshold:
-                print(f"  Disease {i}: {prob:.4f}")
+                name = disease_names[i] if i < len(disease_names) else f"Disease {i}"
+                print(f"  {name}: {prob:.4f}")
     
     print("="*60)
-    
-    # Create concept and disease names
-    concept_names = [f'Concept {i}' for i in range(args.K)]
-    disease_names = [f'Disease {i}' for i in range(args.num_classes)]
     
     # Visualize
     print("\nGenerating visualization...")
