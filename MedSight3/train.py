@@ -409,8 +409,16 @@ def main():
     
     # GET FILTERED COLUMNS DIRECTLY FROM DATALOADER (guaranteed to match!)
     # These are used by both Stage 1 (pos_weight) and Stage 3 (class distribution)
-    concept_cols = train_loader.dataset.concept_cols
-    target_cols = train_loader.dataset.target_cols
+    # Note: train_loader.dataset might be a Subset, so get the underlying dataset
+    if hasattr(train_loader.dataset, 'dataset'):
+        # It's a Subset from random_split, get the underlying dataset
+        base_dataset = train_loader.dataset.dataset
+    else:
+        # It's the actual dataset
+        base_dataset = train_loader.dataset
+    
+    concept_cols = base_dataset.concept_cols
+    target_cols = base_dataset.target_cols
     
     # Tính pos_weight để xử lý class imbalance
     # Tính trực tiếp từ CSV thay vì load ảnh (nhanh hơn 100x)

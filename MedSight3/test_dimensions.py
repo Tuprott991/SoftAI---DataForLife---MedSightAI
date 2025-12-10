@@ -30,8 +30,14 @@ def test_dimensions(train_csv, test_csv, train_images_dir, test_images_dir,
     print(f"✅ Dataloaders created: {num_concepts} concepts, {num_classes} classes")
     
     # 2. Get filtered columns from dataloader
-    concept_cols = train_loader.dataset.concept_cols
-    target_cols = train_loader.dataset.target_cols
+    # Handle Subset wrapper from random_split
+    if hasattr(train_loader.dataset, 'dataset'):
+        base_dataset = train_loader.dataset.dataset
+    else:
+        base_dataset = train_loader.dataset
+    
+    concept_cols = base_dataset.concept_cols
+    target_cols = base_dataset.target_cols
     
     print(f"✅ Concept columns ({len(concept_cols)}): {concept_cols[:3]}... (showing first 3)")
     print(f"✅ Target columns ({len(target_cols)}): {target_cols}")
