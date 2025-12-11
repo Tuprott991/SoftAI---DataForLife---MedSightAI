@@ -10,7 +10,8 @@ from app.config.database import get_db
 from app.core import patient as crud_patient
 from app.schemas import (
     PatientCreate, PatientUpdate, PatientResponse, 
-    PatientListResponse, PatientInforResponse, LatestCaseInfo, MessageResponse
+    PatientListResponse, PatientInforResponse, LatestCaseInfo, 
+    PatientInforListResponse, MessageResponse
 )
 
 router = APIRouter()
@@ -49,6 +50,67 @@ def list_patients(
         "page": page,
         "page_size": page_size,
         "patients": patients
+    }
+
+
+@router.get("/list/infor", response_model=PatientInforListResponse)
+def list_patients_with_infor(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    search: str = Query(None),
+    db: Session = Depends(get_db)
+):
+    """List all patients with complete information including latest case data"""
+    skip = (page - 1) * page_size
+    
+    if search:
+        patients = crud_patient.search_patients(db, query=search, skip=skip, limit=page_size)
+        total = len(patients)  # Simplified; should count search results
+    else:
+        patients = crud_patient.get_multi(db, skip=skip, limit=page_size)
+        total = crud_patient.get_count(db)
+    
+    # Build response with patient info and latest case for each patient
+    patients_with_infor = []
+    for patient in patients:
+        # Get latest case for this patient
+        latest_case = crud_patient.get_latest_case_for_patient(db, patient_id=str(patient.id))
+        
+        # Build patient infor response
+        patient_data = {
+            "id": patient.id,
+            "name": patient.name,
+            "age": patient.age,
+            "gender": patient.gender,
+            "history": patient.history,
+            "created_at": patient.created_at,
+            "blood_type": patient.blood_type,
+            "status": patient.status,
+            "underlying_condition": patient.underlying_condition,
+            "phone_number": patient.phone_number,
+            "fcm_token": patient.fcm_token,
+            "latest_case": None
+        }
+        
+        # Add latest case info if exists
+        if latest_case:
+            patient_data["latest_case"] = LatestCaseInfo(
+                image_path=latest_case.image_path,
+                processed_img_path=latest_case.processed_img_path,
+                timestamp=latest_case.timestamp,
+                similar_cases=latest_case.similar_cases,
+                similarity_scores=latest_case.similarity_scores,
+                diagnosis=latest_case.diagnosis,
+                findings=latest_case.findings
+            )
+        
+        patients_with_infor.append(patient_data)
+    
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "patients": patients_with_infor
     }
 
 
@@ -107,6 +169,8 @@ def get_patient_infor(
         "blood_type": patient.blood_type,
         "status": patient.status,
         "underlying_condition": patient.underlying_condition,
+        "phone_number": patient.phone_number,
+        "fcm_token": patient.fcm_token,
         "latest_case": None
     }
     

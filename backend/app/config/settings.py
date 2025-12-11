@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     # Application
     APP_NAME: str = "MedSight AI Backend"
     APP_VERSION: str = "1.0.0"
-    DEBUG: bool = True
+    DEBUG: bool = False
     API_V1_STR: str = "/api/v1"
     
     # Server

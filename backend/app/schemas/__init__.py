@@ -4,7 +4,7 @@ Pydantic schemas module
 from app.schemas.patient import (
     PatientBase, PatientCreate, PatientUpdate, 
     PatientResponse, PatientListResponse,
-    PatientInforResponse, LatestCaseInfo
+    PatientInforResponse, LatestCaseInfo, PatientInforListResponse
 )
 from app.schemas.case import (
     CaseBase, CaseCreate, CaseUpdate, 

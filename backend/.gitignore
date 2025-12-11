@@ -17,11 +17,6 @@ ENV/
 .env
 .env.local
 
-# Firebase Service Account Keys (CRITICAL - DO NOT COMMIT!)
-serviceAccountKey.json
-*-firebase-adminsdk-*.json
-firebase-*.json
-
 # IDE
 .vscode/
 .idea/

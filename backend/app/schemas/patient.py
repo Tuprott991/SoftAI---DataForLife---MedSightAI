@@ -16,6 +16,8 @@ class PatientBase(BaseModel):
     blood_type: Optional[str] = Field(None, description="Blood type (A+, B-, O+, AB+, etc.)")
     status: Optional[str] = Field(None, description="Patient status: stable, improving, or critical")
     underlying_condition: Optional[Dict[str, Any]] = Field(None, description="Chronic or underlying conditions as JSON")
+    phone_number: Optional[str] = Field(None, description="Patient mobile phone number (international format: +84912345678)")
+    fcm_token: Optional[str] = Field(None, description="Firebase Cloud Messaging token for push notifications")
 
 
 class PatientCreate(PatientBase):
@@ -32,6 +34,8 @@ class PatientUpdate(BaseModel):
     blood_type: Optional[str] = None
     status: Optional[str] = None
     underlying_condition: Optional[Dict[str, Any]] = None
+    phone_number: Optional[str] = None
+    fcm_token: Optional[str] = None
 
 
 class PatientResponse(PatientBase):
@@ -41,6 +45,8 @@ class PatientResponse(PatientBase):
     blood_type: Optional[str] = None
     status: Optional[str] = None
     underlying_condition: Optional[Dict[str, Any]] = None
+    phone_number: Optional[str] = None
+    fcm_token: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -77,9 +83,22 @@ class PatientInforResponse(BaseModel):
     blood_type: Optional[str]
     status: Optional[str]
     underlying_condition: Optional[Dict[str, Any]]
+    phone_number: Optional[str]
+    fcm_token: Optional[str]
     
     # Latest case information
     latest_case: Optional[LatestCaseInfo] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class PatientInforListResponse(BaseModel):
+    """Schema for paginated patient list with complete information"""
+    total: int
+    page: int
+    page_size: int
+    patients: list[PatientInforResponse]
     
     class Config:
         from_attributes = True

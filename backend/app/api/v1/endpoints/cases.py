@@ -80,8 +80,9 @@ async def create_case_with_file_upload(
         raise HTTPException(status_code=404, detail="Patient not found")
     
     # Validate file
-    if file.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
-        raise HTTPException(status_code=400, detail="Invalid image format. Only JPEG and PNG allowed")
+    allowed_types = ["image/jpeg", "image/png", "image/jpg", "application/dicom", "application/octet-stream"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Invalid image format. Only JPEG, PNG, and DICOM allowed")
     
     # Upload to S3 using new path structure
     image_path = s3_service.upload_file(

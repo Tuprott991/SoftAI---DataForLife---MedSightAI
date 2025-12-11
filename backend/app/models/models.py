@@ -22,6 +22,8 @@ class Patient(Base):
     blood_type = Column(Text)  # e.g., A+, B-, O+, AB+
     status = Column(Text)  # stable, improving, critical
     underlying_condition = Column(JSONB)  # JSON object for chronic conditions
+    phone_number = Column(Text)  # Patient mobile phone number (international format: +84912345678)
+    fcm_token = Column(Text)  # Firebase Cloud Messaging token for push notifications
     
     # Relationships
     cases = relationship("Case", back_populates="patient", cascade="all, delete-orphan")
@@ -55,7 +57,8 @@ class AIResult(Base):
     case_id = Column(UUID(as_uuid=True), ForeignKey("cases.id", ondelete="CASCADE"), nullable=False)
     predicted_diagnosis = Column(Text)
     confident_score = Column(Float)
-    bounding_box = Column(JSONB)  # Stores bounding box coordinates and labels
+    bounding_box = Column(JSONB)  # Stores bounding box coordinates
+    concepts = Column(JSONB)  # Stores concept labels corresponding to bounding boxes
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships

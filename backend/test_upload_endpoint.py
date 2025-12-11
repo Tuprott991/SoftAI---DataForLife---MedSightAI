@@ -3,29 +3,27 @@ Quick test for /api/v1/cases/upload endpoint
 Upload X-ray image to S3 and create case
 """
 import requests
-import io
-from PIL import Image
-import numpy as np
+import os
 
 BASE_URL = "http://localhost:8000/api/v1"
 
-def create_test_image():
-    """Create a simple test X-ray image"""
-    # Create 512x512 grayscale image
-    img_array = np.random.randint(50, 200, size=(512, 512), dtype=np.uint8)
-    img = Image.fromarray(img_array, mode='L')
+def load_test_image():
+    """Load real test image from current directory"""
+    image_path = os.path.join(os.path.dirname(__file__), "test.png")
     
-    # Save to bytes buffer
-    buffer = io.BytesIO()
-    img.save(buffer, format='JPEG')
-    buffer.seek(0)
+    if not os.path.exists(image_path):
+        raise FileNotFoundError(f"Test image not found: {image_path}")
     
-    return buffer
+    # Read image file
+    with open(image_path, 'rb') as f:
+        image_data = f.read()
+    
+    return image_data
 
 # Step 1: Create a patient first
 print("\n1️⃣ Creating test patient...")
 patient_data = {
-    "name": "Test Patient",
+    "name": "Test Patient 2",
     "age": 45,
     "gender": "male"
 }
@@ -44,10 +42,10 @@ else:
 # Step 2: Upload image using /cases/upload endpoint
 print(f"\n2️⃣ Uploading X-ray image to /api/v1/cases/upload...")
 
-image_buffer = create_test_image()
+image_data = load_test_image()
 
 files = {
-    'file': ('chest_xray.jpg', image_buffer, 'image/jpeg')
+    'file': ('test.png', image_data, 'image/png')
 }
 
 params = {

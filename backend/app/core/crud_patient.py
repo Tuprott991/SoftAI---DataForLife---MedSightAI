@@ -50,6 +50,10 @@ class CRUDPatient(CRUDBase[Patient]):
             .order_by(desc(Case.timestamp))
             .first()
         )
+    
+    def get_by_phone(self, db: Session, *, phone_number: str) -> Optional[Patient]:
+        """Get patient by phone number"""
+        return db.query(Patient).filter(Patient.phone_number == phone_number).first()
 
 
 # Create instance
