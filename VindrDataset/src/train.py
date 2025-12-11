@@ -14,6 +14,10 @@ from dataset import VINDRCXRDataset
 from model import CSRModel 
 from loss import CSRContrastiveLoss
 
+# Thêm constant
+EXCLUDE_CLASSES = ['Consolidation', 'Calcification', 'Atelectasis', 'Pneumothorax', 'ILD', 'Infiltration', 'Other lesion']
+NUM_CLASSES_AFTER_EXCLUDE = 14 - len(EXCLUDE_CLASSES)  # = 7
+
 # ==========================================
 # 1. CÁC HÀM TIỆN ÍCH (UTILS)
 # ==========================================
@@ -249,13 +253,14 @@ def get_args():
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--num_prototypes", type=int, default=5)
     parser.add_argument("--img_size", type=int, default=384)
-    parser.add_argument("--num_classes", type=int, default=14)
+    parser.add_argument("--num_classes", type=int, default=7,  # Đổi từ 14 thành 7
+                        help="Số lượng class (sau khi loại bỏ)")
     
     # ===== THÊM MỚI =====
-    parser.add_argument("--backbone_type", type=str, default="resnet",
-                        choices=["resnet", "medmae"])
-    parser.add_argument("--model_name", type=str, default="resnet50")
-    parser.add_argument("--pretrained_weights", type=str, default=None)
+    parser.add_argument("--backbone_type", type=str, default="densenet",  # Đổi thành densenet
+                        help="Loại backbone: densenet, resnet, medmae")
+    parser.add_argument("--model_name", type=str, default="densenet121",  # Đổi thành densenet121
+                        help="Tên model backbone")
     
     return parser.parse_args()
 
@@ -272,6 +277,7 @@ def main():
         num_classes=args.num_classes,
         target_size=args.img_size,
         map_size=args.img_size // 32,
+        exclude_classes=EXCLUDE_CLASSES  # Thêm parameter này
     )
     
     # Xử lý QUICK TRAIN (Subset)
@@ -357,11 +363,10 @@ def main():
         model_name_to_use = args.model_name
     
     model = CSRModel(
-        num_classes=args.num_classes, 
-        num_prototypes=args.num_prototypes, 
-        model_name=model_name_to_use,
-        backbone_type=args.backbone_type,
-        img_size=args.img_size  # ⚠️ Truyền img_size
+        num_classes=args.num_classes,  # = 7
+        num_prototypes=args.num_prototypes,
+        model_name=args.model_name,  # = "densenet121"
+        backbone_type=args.backbone_type  # = "densenet"
     )
     model.to(device)
 
