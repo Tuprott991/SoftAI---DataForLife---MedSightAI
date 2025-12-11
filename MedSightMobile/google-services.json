@@ -12,7 +12,16 @@
           "package_name": "com.medsightmobile.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1044083966032-ukic10fccbggui827dd2qs9ceemvhin3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.medsightmobile.app",
+            "certificate_hash": "b5109bbdf93c0fe381978b8559d6b207f69e34cf"
+          }
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAmn7xk4mWdq2I-N5umQk94CjcnS5fZNto"

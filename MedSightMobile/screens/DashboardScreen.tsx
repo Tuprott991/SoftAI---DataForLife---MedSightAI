@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
+import { UpdateService } from '@/utils/updateService';
 
 export default function DashboardScreen() {
   const { user, userProfile, signOutUser } = useAuth();
@@ -42,6 +43,14 @@ export default function DashboardScreen() {
         },
       ]
     );
+  };
+
+  const handleCheckUpdates = async () => {
+    await UpdateService.checkForUpdatesWithPrompt();
+  };
+
+  const handleAbout = () => {
+    router.push('/about' as any);
   };
 
   return (
@@ -87,6 +96,24 @@ export default function DashboardScreen() {
 
         {/* Spacer */}
         <View style={{ flex: 1 }} />
+
+        {/* About Button */}
+        <TouchableOpacity
+          style={styles.aboutButton}
+          onPress={handleAbout}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.aboutButtonText}>ℹ️ Về ứng dụng</Text>
+        </TouchableOpacity>
+
+        {/* Check Updates Button */}
+        <TouchableOpacity
+          style={styles.updateButton}
+          onPress={handleCheckUpdates}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.updateButtonText}>🔄 Kiểm tra cập nhật</Text>
+        </TouchableOpacity>
 
         {/* Logout Button */}
         <TouchableOpacity
@@ -167,6 +194,48 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1F2937',
     fontWeight: '600',
+  },
+  aboutButton: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    shadowColor: '#3B82F6',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  aboutButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  updateButton: {
+    backgroundColor: '#14B8A6',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    shadowColor: '#14B8A6',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  updateButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
   },
   logoutButton: {
     backgroundColor: '#EF4444',

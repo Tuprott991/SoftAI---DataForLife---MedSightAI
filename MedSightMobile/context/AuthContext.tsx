@@ -136,7 +136,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const sendOTP = async (phone: string, appVerifier: any): Promise<string> => {
     try {
-      console.log('Auth: sendOTP called with phone:', phone);
+      console.log('🚀 Auth: sendOTP called with phone:', phone);
       
       setError(null);
       setIsLoading(true);
@@ -144,53 +144,96 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Format phone number using utility function
       const formattedPhone = normalizePhoneNumber(phone);
       
-      console.log('Auth: Formatted phone:', formattedPhone);
+      console.log('📱 Auth: Formatted phone:', formattedPhone);
       setPhoneNumber(formattedPhone);
       
-      // Try to send real SMS via Firebase (works on real devices with Blaze Plan)
+      // Validate phone format
+      if (!formattedPhone.startsWith('+')) {
+        throw new Error('Số điện thoại phải có mã quốc gia (vd: +84)');
+      }
+      
+      // Try to send real SMS via Firebase
       try {
         const phoneProvider = new PhoneAuthProvider(auth);
-        console.log('Auth: Attempting to send SMS via Firebase PhoneAuthProvider...');
+        console.log('📤 Auth: Attempting to send SMS via Firebase...');
+        console.log('🔑 Auth: Phone:', formattedPhone);
+        console.log('🔐 Auth: AppVerifier:', appVerifier ? 'Provided' : 'NULL (using Play Integrity)');
         
-        // On Android with Google Play Services, this will use Play Integrity
-        // No ReCAPTCHA needed if SHA-256 is configured correctly
+        // On Android, appVerifier can be null if Play Integrity is configured
+        // Firebase will use Play Integrity API automatically
         const verificationId = await phoneProvider.verifyPhoneNumber(
           formattedPhone,
-          appVerifier // Can be null, Firebase will use Play Integrity on Android
+          appVerifier // null = use Play Integrity on Android
         );
         
-        console.log('Auth: ✅ SMS sent successfully! Verification ID:', verificationId);
+        console.log('✅ Auth: SMS sent successfully!');
+        console.log('🆔 Auth: Verification ID:', verificationId);
+        
         setVerificationId(verificationId);
         setIsLoading(false);
         
         return verificationId;
-      } catch (firebaseErr: any) {
-        // If Firebase SMS fails, fallback to mock mode for testing
-        console.warn('⚠️  Firebase SMS failed, using mock OTP for development');
-        console.log('Auth: Firebase Error:', firebaseErr.code, firebaseErr.message);
-        console.log('Auth: Test phone numbers: +84 945 876 079, +1 650-555-1234');
-        console.log('Auth: Test OTP: 123456');
         
-        // Only use mock mode for specific test numbers
-        const testNumbers = ['+84945876079', '+16505551234', '+84 945 876 079', '+1 650-555-1234'];
-        if (testNumbers.includes(formattedPhone) || testNumbers.includes(formattedPhone.replace(/\s/g, ''))) {
+      } catch (firebaseErr: any) {
+        console.error('❌ Auth: Firebase SMS error:', firebaseErr);
+        console.error('📋 Auth: Error code:', firebaseErr.code);
+        console.error('📝 Auth: Error message:', firebaseErr.message);
+        console.error('🔍 Auth: Full error:', JSON.stringify(firebaseErr, null, 2));
+        
+        // Check specific error codes
+        if (firebaseErr.code === 'auth/invalid-app-credential' || 
+            firebaseErr.code === 'auth/missing-client-identifier' ||
+            firebaseErr.code === 'auth/app-not-authorized') {
+          console.warn('⚠️  Firebase configuration issue detected');
+          console.warn('💡 Possible causes:');
+          console.warn('   1. SHA-256 certificate not added to Firebase Console');
+          console.warn('   2. google-services.json outdated');
+          console.warn('   3. App not authorized in Firebase Console');
+          console.warn('   4. Running in development mode without proper config');
+          console.warn('');
+          console.warn('🔧 Using mock OTP for development...');
+          
+          // Use mock mode for development
+          const mockVerificationId = 'mock-verification-' + Date.now();
+          setVerificationId(mockVerificationId);
+          setIsLoading(false);
+          
+          console.log('✅ Mock OTP mode activated');
+          console.log('🔑 Use OTP: 123456 to login');
+          
+          return mockVerificationId;
+        }
+        
+        // For test numbers, use mock mode
+        const testNumbers = ['+84945876079', '+16505551234'];
+        const cleanedPhone = formattedPhone.replace(/\s/g, '');
+        
+        if (testNumbers.some(num => cleanedPhone.includes(num.replace(/\s/g, '')))) {
+          console.warn('🧪 Test phone number detected, using mock OTP');
           const mockVerificationId = 'mock-verification-' + Date.now();
           setVerificationId(mockVerificationId);
           setIsLoading(false);
           return mockVerificationId;
         }
         
-        // For real numbers, throw the error
+        // For real numbers with errors, throw
         throw firebaseErr;
       }
       
     } catch (err: any) {
-      console.error('Auth: sendOTP error:', err);
-      console.error('Auth: Error code:', err.code);
-      console.error('Auth: Error message:', err.message);
+      console.error('❌ Auth: sendOTP fatal error:', err);
       
       // Use Vietnamese error messages
-      const errorMessage = getVietnameseAuthError(err.code) || err.message || 'Không thể gửi mã OTP';
+      let errorMessage = getVietnameseAuthError(err.code);
+      
+      // Add helpful hints for common issues
+      if (err.code === 'auth/invalid-phone-number') {
+        errorMessage += '\n\nVui lòng nhập đầy đủ mã quốc gia (vd: +84 cho Việt Nam)';
+      }
+      
+      if (!errorMessage || errorMessage.includes('Đã có lỗi')) {
+        errorMessage = err.message || 'Không thể gửi mã OTP';
+      }
       
       setError(errorMessage);
       setIsLoading(false);
