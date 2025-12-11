@@ -1,35 +1,37 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { patientsData } from '../constants/patients';
+import { getPatientDetail } from '../services/patientApi';
 import {
     ImageInteractiveSection,
     SubmitSection,
     ChatbotSection
 } from '../components/StudentDetail';
 import { Toast } from '../components/custom/Toast';
-import { User, Calendar } from 'lucide-react';
+import { User, Calendar, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 export const StudentDetail = () => {
     const { t } = useTranslation();
     const { id } = useParams();
-    const patient = patientsData.find(p => p.id === parseInt(id));
+    const [patient, setPatient] = useState(null);
     const [caseData, setCaseData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [annotations, setAnnotations] = useState([]);
     const [submissionData, setSubmissionData] = useState(null);
     const [toast, setToast] = useState(null);
 
     // Status color helper function (matching PatientCard)
     const getStatusColor = (status) => {
-        switch (status) {
-            case 'Critical':
+        const statusLower = status?.toLowerCase();
+        switch (statusLower) {
+            case 'critical':
                 return 'bg-red-600/30 text-white border-red-600/40';
-            case 'Under Treatment':
+            case 'improving':
                 return 'bg-blue-500/30 text-white border-blue-500/40';
-            case 'Stable':
+            case 'stable':
                 return 'bg-green-500/30 text-white border-green-500/40';
-            case 'Admitted':
+            case 'admitted':
                 return 'bg-teal-500/30 text-white border-teal-500/40';
             default:
                 return 'bg-gray-500/30 text-white border-gray-500/40';
@@ -37,41 +39,52 @@ export const StudentDetail = () => {
     };
 
     const getStatusText = (status) => {
+        const statusLower = status?.toLowerCase();
         const statusMap = {
-            'Critical': t('doctor.patientCard.statusCritical'),
-            'Under Treatment': t('doctor.patientCard.statusUnderTreatment'),
-            'Stable': t('doctor.patientCard.statusStable'),
-            'Admitted': t('doctor.patientCard.statusAdmitted')
+            'critical': t('doctor.patientCard.statusCritical'),
+            'improving': t('doctor.patientCard.statusUnderTreatment'),
+            'stable': t('doctor.patientCard.statusStable'),
+            'admitted': t('doctor.patientCard.statusAdmitted')
         };
-        return statusMap[status] || status;
+        return statusMap[statusLower] || status;
     };
 
-    // Simulate API call to fetch case data
+    // Fetch patient data from API
     useEffect(() => {
         const fetchCaseData = async () => {
             setLoading(true);
+            setError(null);
+            
+            try {
+                const data = await getPatientDetail(id);
+                setPatient(data);
+                
+                // For students, anonymize patient information
+                const mockCase = {
+                    id: data.id,
+                    patientName: `Case ${data.id.substring(0, 8)}`, // Anonymize
+                    age: null, // Hide age
+                    gender: null, // Hide gender
+                    diagnosis: null, // Hide diagnosis
+                    imageUrl: data.latest_case?.processed_img_path || data.latest_case?.image_path || '',
+                    description: 'Medical imaging case for educational purposes',
+                    difficulty: 'Intermediate',
+                    status: data.status
+                };
 
-            // Mock API delay
-            await new Promise(resolve => setTimeout(resolve, 800));
-
-            // Mock case data
-            const mockCase = {
-                id: parseInt(id),
-                patientName: patient?.name || 'Unknown Patient',
-                age: patient?.age || 0,
-                gender: patient?.gender || 'Unknown',
-                diagnosis: patient?.diagnosis || 'Unknown Condition',
-                imageUrl: patient?.image || '',
-                description: 'Medical imaging case for educational purposes',
-                difficulty: 'Intermediate'
-            };
-
-            setCaseData(mockCase);
-            setLoading(false);
+                setCaseData(mockCase);
+            } catch (err) {
+                console.error('Error fetching case data:', err);
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
         };
 
-        fetchCaseData();
-    }, [id, patient]);
+        if (id) {
+            fetchCaseData();
+        }
+    }, [id]);
 
     const handleAnnotationsChange = (newAnnotations) => {
         setAnnotations(newAnnotations);
@@ -92,12 +105,20 @@ export const StudentDetail = () => {
         setToast({ type, message });
     };
 
-    if (!patient) {
+    if (loading) {
+        return (
+            <div className="h-screen bg-[#0a0a0a] text-white flex items-center justify-center">
+                <Loader2 className="w-12 h-12 text-teal-500 animate-spin" />
+            </div>
+        );
+    }
+
+    if (error || !patient || !caseData) {
         return (
             <div className="h-screen bg-[#0a0a0a] text-white flex items-center justify-center">
                 <div className="text-center">
                     <h1 className="text-2xl font-bold mb-2">{t('doctor.noResults')}</h1>
-                    <p className="text-gray-400">{t('common.error')}</p>
+                    <p className="text-gray-400">{error || t('common.error')}</p>
                 </div>
             </div>
         );

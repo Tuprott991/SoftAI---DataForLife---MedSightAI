@@ -255,3 +255,116 @@ async def generate_embeddings(
             status_code=500,
             detail=f"Failed to generate embeddings: {str(e)}"
         )
+
+
+@router.post("/embed/batch")
+async def batch_generate_embeddings(
+    db: Session = Depends(get_db),
+    skip_existing: bool = True
+):
+    """
+    Batch generate embeddings for ALL cases in the database
+    
+    This endpoint processes all cases in the database and generates embeddings
+    for each case. Useful for initial setup or bulk re-indexing.
+    
+    Args:
+        db: Database session
+        skip_existing: If True, skip cases that already have embeddings in Zilliz
+    
+    Returns:
+        Summary of batch processing results
+        
+    Note:
+        This can be a long-running operation for large datasets.
+        Consider using async task queues (Celery) for production use.
+    """
+    # Get all cases from database
+    all_cases = db.query(crud_case.model).all()
+    
+    total_cases = len(all_cases)
+    processed = 0
+    skipped = 0
+    failed = 0
+    errors = []
+    
+    print(f"📊 Starting batch embedding generation for {total_cases} cases...")
+    
+    for case in all_cases:
+        case_id_str = str(case.id)
+        
+        try:
+            # Check if embeddings already exist
+            if skip_existing:
+                existing = zilliz_service.get_by_case_id(case_id_str)
+                if existing and existing.get('img_emb'):
+                    print(f"⏭️  Skipping case {case_id_str} (already has embeddings)")
+                    skipped += 1
+                    continue
+            
+            # Download image from S3
+            image_path = case.processed_img_path or case.image_path
+            
+            if image_path.startswith('http'):
+                s3_key = '/'.join(image_path.split('/')[3:])
+            else:
+                s3_key = image_path
+            
+            image_bytes = s3_service.download_file(s3_key)
+            
+            # Build text description
+            text_parts = []
+            
+            if case.diagnosis:
+                text_parts.append(f"Diagnosis: {case.diagnosis}")
+            
+            if case.findings:
+                text_parts.append(f"Findings: {case.findings}")
+            
+            # Get AI result
+            ai_result = crud_ai_result.get_by_case(db, case_id=case.id)
+            if ai_result and ai_result.predicted_diagnosis:
+                text_parts.append(f"AI Prediction: {ai_result.predicted_diagnosis}")
+            
+            text_description = " | ".join(text_parts) if text_parts else "chest x-ray image"
+            
+            # Generate embeddings
+            image_emb, text_emb = medsigclip_service.generate_embeddings(
+                image_bytes=image_bytes,
+                text=text_description
+            )
+            
+            # Store in Zilliz
+            success = zilliz_service.upsert_embedding(
+                case_id=case_id_str,
+                txt_embedding=text_emb,
+                img_embedding=image_emb
+            )
+            
+            if success:
+                processed += 1
+                print(f"✅ Processed case {case_id_str} ({processed}/{total_cases})")
+            else:
+                failed += 1
+                error_msg = f"Failed to store embeddings for case {case_id_str}"
+                errors.append(error_msg)
+                print(f"❌ {error_msg}")
+                
+        except Exception as e:
+            failed += 1
+            error_msg = f"Case {case_id_str}: {str(e)}"
+            errors.append(error_msg)
+            print(f"❌ Error processing case {case_id_str}: {str(e)}")
+            continue
+    
+    return {
+        "status": "completed",
+        "summary": {
+            "total_cases": total_cases,
+            "processed": processed,
+            "skipped": skipped,
+            "failed": failed,
+            "success_rate": f"{(processed / total_cases * 100):.2f}%" if total_cases > 0 else "0%"
+        },
+        "errors": errors[:10] if errors else []  # Return first 10 errors
+    }

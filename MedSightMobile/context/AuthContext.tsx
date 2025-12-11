@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Alert } from 'react-native';
 import { auth, db, app } from '@/services/firebase';
 import { signOut, onAuthStateChanged, PhoneAuthProvider, signInWithCredential } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection } from 'firebase/firestore';
 import { getVietnameseAuthError, normalizePhoneNumber } from '@/utils/otp-utils';
+import { setupNotifications } from '@/services/notificationService';
 
 // Mock storage for users (simulates Firestore for offline/testing)
 const mockUserDatabase: Record<string, any> = {};
@@ -111,6 +113,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           
           // Check if user exists in Firestore
           await checkUserExists(currentUser.uid);
+          
+          // Setup FCM notifications
+          try {
+            console.log('🔔 Setting up FCM for user:', currentUser.uid);
+            await setupNotifications(currentUser.uid);
+          } catch (error) {
+            console.error('❌ Error setting up FCM:', error);
+          }
         } else {
           setUser(null);
           setUserProfile(null);
@@ -180,6 +190,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.error('📝 Auth: Error message:', firebaseErr.message);
         console.error('🔍 Auth: Full error:', JSON.stringify(firebaseErr, null, 2));
         
+        // Show Firebase error in Alert for debugging
+        Alert.alert(
+          '🐛 Firebase Error (Send OTP)',
+          `Error Code: ${firebaseErr.code || 'N/A'}\n\n` +
+          `Message: ${firebaseErr.message || 'Unknown'}\n\n` +
+          `Phone: ${formattedPhone}\n\n` +
+          `Falling back to mock mode...`,
+          [{ text: 'OK' }]
+        );
+        
         // Check specific error codes
         if (firebaseErr.code === 'auth/invalid-app-credential' || 
             firebaseErr.code === 'auth/missing-client-identifier' ||
@@ -243,7 +263,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const verifyOTP = async (otp: string): Promise<any> => {
     try {
-      console.log('Auth: verifyOTP called with OTP length:', otp.length);
+      console.log('🔐 Auth: verifyOTP called');
+      console.log('📝 Auth: OTP:', otp);
+      console.log('📝 Auth: OTP length:', otp.length);
+      console.log('🆔 Auth: Verification ID:', verificationId);
       setError(null);
       setIsLoading(true);
 
@@ -284,9 +307,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       // Real Firebase verification
+      console.log('🔥 Auth: Starting Firebase credential verification...');
+      console.log('🆔 Auth: Using verification ID:', verificationId);
+      console.log('🔑 Auth: Using OTP:', otp);
+      
       const credential = PhoneAuthProvider.credential(verificationId, otp);
+      console.log('✅ Auth: Credential created successfully');
+      
+      console.log('🔐 Auth: Signing in with credential...');
       const userCredential = await signInWithCredential(auth, credential);
-      console.log('Auth: User signed in successfully:', userCredential.user.uid);
+      console.log('✅ Auth: User signed in successfully:', userCredential.user.uid);
+      console.log('📱 Auth: Phone number:', userCredential.user.phoneNumber);
       
       // Create auth user object
       const authUser: AuthUser = {
@@ -304,8 +335,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsLoading(false);
       return userCredential.user;
     } catch (err: any) {
-      console.error('Auth: verifyOTP error:', err);
-      console.error('Auth: Error code:', err.code);
+      console.error('❌ Auth: verifyOTP error:', err);
+      console.error('📋 Auth: Error code:', err.code);
+      console.error('📝 Auth: Error message:', err.message);
+      console.error('🔍 Auth: Full error:', JSON.stringify(err, null, 2));
+      
+      // Show detailed error in Alert for debugging
+      Alert.alert(
+        '🐛 Debug Info',
+        `Error Code: ${err.code || 'N/A'}\n\n` +
+        `Message: ${err.message || 'Unknown error'}\n\n` +
+        `Verification ID: ${verificationId}\n\n` +
+        `OTP Length: ${otp.length}`,
+        [{ text: 'OK' }]
+      );
       
       // Use Vietnamese error messages
       const errorMessage = getVietnameseAuthError(err.code) || err.message || 'Mã OTP không hợp lệ';

@@ -4,7 +4,7 @@ API v1 endpoints module
 from fastapi import APIRouter
 from app.api.v1.endpoints import (
     patients, cases, analysis, reports, 
-    education, similarity, health
+    education, similarity, health, dicom
 )
 
 api_router = APIRouter()
@@ -17,3 +17,5 @@ api_router.include_router(analysis.router, prefix="/analysis", tags=["AI Analysi
 api_router.include_router(reports.router, prefix="/reports", tags=["Reports"])
 api_router.include_router(education.router, prefix="/education", tags=["Education Mode"])
 api_router.include_router(similarity.router, prefix="/similarity", tags=["Similarity Search"])
+api_router.include_router(dicom.router, prefix="/dicom", tags=["DICOM"])
+api_router.include_router(dicom.router, prefix="/dicom", tags=["DICOM"])

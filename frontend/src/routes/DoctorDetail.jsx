@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Sparkles, RefreshCw, Bot, FileText, Send, X } from 'lucide-react';
+import { Sparkles, RefreshCw, Bot, FileText, Send, X, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { patientsData } from '../constants/patients';
+import { getPatientDetail } from '../services/patientApi';
 import { medicalImagesGroups, generateAnalysisData, getFindingImagePath, getPrototypeImagePath } from '../constants/medicalData';
 import { generatePatientReport } from '../constants/reportData';
 import { getTranslatedDiagnosis } from '../utils/diagnosisHelper';
@@ -17,20 +17,49 @@ import { useSidebar } from '../components/layout';
 export const DoctorDetail = () => {
     const { t } = useTranslation();
     const { id } = useParams();
-    const patient = patientsData.find(p => p.id === parseInt(id));
+    const [patient, setPatient] = useState(null);
+    const [isLoadingPatient, setIsLoadingPatient] = useState(true);
+    const [error, setError] = useState(null);
     const { isLeftCollapsed } = useSidebar();
 
-    // Use patient's image as default
-    const patientImageData = patient ? {
-        id: 0,
-        url: patient.image,
-        type: "Ảnh X-quang chính",
-        imageCode: `IMG-${patient.id}-MAIN`,
-        modality: "X-Ray"
-    } : medicalImagesGroups[0]?.images[0];
+    // Fetch patient detail
+    useEffect(() => {
+        const fetchPatient = async () => {
+            setIsLoadingPatient(true);
+            setError(null);
+            try {
+                const data = await getPatientDetail(id);
+                setPatient(data);
+                
+                // Set default image after patient data is loaded
+                if (data?.latest_case?.image_path || data?.latest_case?.processed_img_path) {
+                    const imageUrl = data.latest_case.processed_img_path || data.latest_case.image_path;
+                    const defaultImage = {
+                        id: 0,
+                        url: imageUrl,
+                        type: "Ảnh X-quang chính",
+                        imageCode: `IMG-${data.id}-MAIN`,
+                        modality: "X-Ray"
+                    };
+                    setSelectedImage(defaultImage);
+                    setOriginalImage(defaultImage);
+                }
+            } catch (err) {
+                console.error('Error fetching patient detail:', err);
+                setError(err.message);
+            } finally {
+                setIsLoadingPatient(false);
+            }
+        };
 
-    const [selectedImage, setSelectedImage] = useState(patientImageData);
-    const [originalImage, setOriginalImage] = useState(patientImageData);
+        if (id) {
+            fetchPatient();
+        }
+    }, [id]);
+
+    // Use patient's image as default
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [originalImage, setOriginalImage] = useState(null);
     const [analysisData, setAnalysisData] = useState(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
@@ -45,6 +74,8 @@ export const DoctorDetail = () => {
     const [isLoadingSimilarAnalysis, setIsLoadingSimilarAnalysis] = useState(false);
 
     const handleAIAnalyze = () => {
+        if (!patient) return;
+        
         setIsAnalyzing(true);
 
         // Exit similar case mode and restore to original single image
@@ -57,8 +88,10 @@ export const DoctorDetail = () => {
         const randomDelay = Math.floor(Math.random() * (6000 - 3000 + 1)) + 3000;
 
         setTimeout(() => {
-            // Generate mock analysis data
-            const data = patient ? generateAnalysisData(patient.diagnosis, patient.image) : null;
+            // Generate mock analysis data using diagnosis from API if available
+            const imageUrl = patient.latest_case?.processed_img_path || patient.latest_case?.image_path;
+            const diagnosis = patient.latest_case?.diagnosis || patient.diagnosis;
+            const data = generateAnalysisData(diagnosis, imageUrl);
             setAnalysisData(data);
             setIsAnalyzing(false);
         }, randomDelay);
@@ -129,12 +162,15 @@ export const DoctorDetail = () => {
     };
 
     const handleFindingClick = (finding) => {
+        if (!patient) return;
+        
         // Set selected finding ID for highlighting
         setSelectedFindingId(finding.id);
 
         // Get the image paths for this finding
-        const findingImagePath = getFindingImagePath(finding.text, patient.image);
-        const prototypeImagePath = getPrototypeImagePath(finding.text, patient.image);
+        const imageUrl = patient.latest_case?.processed_img_path || patient.latest_case?.image_path;
+        const findingImagePath = getFindingImagePath(finding.text, imageUrl);
+        const prototypeImagePath = getPrototypeImagePath(finding.text, imageUrl);
 
         if (findingImagePath) {
             // Create xAI image (left side) - AI-enhanced image with finding highlighted
@@ -161,7 +197,7 @@ export const DoctorDetail = () => {
                 const rightImage = {
                     id: `right-${finding.id}`,
                     original: {
-                        url: patient.image,
+                        url: imageUrl,
                         type: `Original: Ảnh gốc`,
                     },
                     prototype: {
@@ -191,13 +227,25 @@ export const DoctorDetail = () => {
         setOriginalImage(image);
     };
 
-    if (!patient) {
+    if (isLoadingPatient) {
+        return (
+            <div className="min-h-screen bg-[#0a0a0a] text-white">
+                <div className="container mx-auto px-6 py-8">
+                    <div className="flex items-center justify-center py-20">
+                        <Loader2 className="w-12 h-12 text-teal-500 animate-spin" />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (error || !patient) {
         return (
             <div className="min-h-screen bg-[#0a0a0a] text-white">
                 <div className="container mx-auto px-6 py-8">
                     <div className="text-center py-20">
                         <h1 className="text-2xl font-bold mb-4">{t('doctor.noResults')}</h1>
-                        <p className="text-gray-400 text-sm">{t('doctor.noResults')}</p>
+                        <p className="text-gray-400 text-sm">{error || t('doctor.noResults')}</p>
                     </div>
                 </div>
             </div>

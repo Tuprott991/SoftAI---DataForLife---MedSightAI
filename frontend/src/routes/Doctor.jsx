@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
-import { Search, Filter, Users } from 'lucide-react';
-import { patientsData } from '../constants/patients';
+import { useState, useEffect } from 'react';
+import { Search, Filter, Users, Loader2 } from 'lucide-react';
+import { getPatients, searchPatients } from '../services/patientApi';
 import { PatientCard } from '../components/custom/PatientCard';
 import { Pagination } from '../components/custom/Pagination';
 import { ITEMS_PER_PAGE } from '../constants/general';
@@ -10,19 +10,38 @@ export const Doctor = () => {
     const { t } = useTranslation();
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [patients, setPatients] = useState([]);
+    const [total, setTotal] = useState(0);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    // Filter patients based on search query
-    const filteredPatients = useMemo(() => {
-        return patientsData.filter(patient =>
-            patient.name.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-    }, [searchQuery]);
+    // Fetch patients data
+    useEffect(() => {
+        const fetchPatients = async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const data = searchQuery 
+                    ? await searchPatients(searchQuery, currentPage, ITEMS_PER_PAGE)
+                    : await getPatients(currentPage, ITEMS_PER_PAGE);
+                
+                setPatients(data.patients || []);
+                setTotal(data.total || 0);
+            } catch (err) {
+                console.error('Error fetching patients:', err);
+                setError(err.message);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchPatients();
+    }, [currentPage, searchQuery]);
 
     // Calculate pagination
-    const totalPages = Math.ceil(filteredPatients.length / ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    const currentPatients = filteredPatients.slice(startIndex, endIndex);
+    const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, total);
 
     // Handle search
     const handleSearch = (e) => {
@@ -76,7 +95,7 @@ export const Doctor = () => {
                 {/* Results Info */}
                 <div className="mb-6 flex items-center justify-between">
                     <p className="text-gray-400">
-                        {t('doctor.pagination.showing')} <span className="text-white font-semibold">{startIndex + 1}-{Math.min(endIndex, filteredPatients.length)}</span> {t('doctor.pagination.of')} <span className="text-white font-semibold">{filteredPatients.length}</span> {t('doctor.pagination.patients')}
+                        {t('doctor.pagination.showing')} <span className="text-white font-semibold">{startIndex + 1}-{endIndex}</span> {t('doctor.pagination.of')} <span className="text-white font-semibold">{total}</span> {t('doctor.pagination.patients')}
                     </p>
                     {searchQuery && (
                         <button
@@ -88,11 +107,23 @@ export const Doctor = () => {
                     )}
                 </div>
 
-                {/* Patient Grid */}
-                {currentPatients.length > 0 ? (
+                {/* Loading State */}
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-20">
+                        <Loader2 className="w-12 h-12 text-teal-500 animate-spin" />
+                    </div>
+                ) : error ? (
+                    <div className="text-center py-20">
+                        <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Users className="w-8 h-8 text-red-400" />
+                        </div>
+                        <h3 className="text-xl font-semibold mb-2 text-red-400">{t('common.error')}</h3>
+                        <p className="text-gray-400">{error}</p>
+                    </div>
+                ) : patients.length > 0 ? (
                     <>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {currentPatients.map((patient) => (
+                            {patients.map((patient) => (
                                 <PatientCard key={patient.id} patient={patient} />
                             ))}
                         </div>

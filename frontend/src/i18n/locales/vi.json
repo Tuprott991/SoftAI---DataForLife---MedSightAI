@@ -126,10 +126,15 @@
       "critical": "Nguy Kịch",
       "stable": "Ổn Định",
       "improving": "Đang Cải Thiện",
+      "admitted": "Tiếp Nhận",
       "personalInfo": "Thông Tin Cá Nhân",
       "specialty": "Chuyên khoa",
       "experience": "Kinh nghiệm",
-      "yearsExp": "năm"
+      "yearsExp": "năm",
+      "conditions": "Bệnh Nền",
+      "hypertension": "Tăng Huyết Áp",
+      "diabetes": "Tiểu Đường",
+      "asthma": "Hen Suyễn"
     },
     "aiConfidence": "Độ Tin Cậy AI",
     "diagnosisAccuracy": "Độ Chính Xác Chẩn Đoán",

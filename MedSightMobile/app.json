@@ -45,6 +45,7 @@
         }
       ],
       "@react-native-firebase/auth",
+      "@react-native-firebase/messaging",
       "expo-router",
       [
         "expo-splash-screen",
@@ -66,9 +67,7 @@
     "updates": {
       "url": "https://u.expo.dev/91f747ae-5092-4b35-8e9b-81c0ecf78a2f"
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "extra": {
       "router": {},
       "eas": {

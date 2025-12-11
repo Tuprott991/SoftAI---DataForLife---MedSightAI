@@ -126,10 +126,15 @@
       "critical": "Critical",
       "stable": "Stable",
       "improving": "Improving",
+      "admitted": "Admitted",
       "personalInfo": "Personal Information",
       "specialty": "Specialty",
       "experience": "Experience",
-      "yearsExp": "years"
+      "yearsExp": "years",
+      "conditions": "Underlying Conditions",
+      "hypertension": "Hypertension",
+      "diabetes": "Diabetes",
+      "asthma": "Asthma"
     },
     "aiConfidence": "AI Confidence",
     "diagnosisAccuracy": "Diagnosis Accuracy",
