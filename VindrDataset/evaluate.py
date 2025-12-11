@@ -28,17 +28,17 @@ def get_args():
                         help="Đường dẫn đến file weight model (.pth)")
 
     # --- Model Parameters ---
-    parser.add_argument("--num_classes", type=int, default=14, help="Số lượng lớp bệnh")
+    parser.add_argument("--num_classes", type=int, default=7, help="Số lượng lớp bệnh")
     parser.add_argument("--num_prototypes", type=int, default=5, 
                         help="Số prototypes mỗi class (PHẢI GIỐNG LÚC TRAIN)")
-    parser.add_argument("--model_name", type=str, default="resnet50", help="Backbone model")
+    parser.add_argument("--model_name", type=str, default="densenet121", help="Backbone model")
     
     # --- Eval Parameters ---
     parser.add_argument("--batch_size", type=int, default=32, help="Kích thước batch khi eval")
     parser.add_argument("--img_size", type=int, default=384, help="Kích thước ảnh đầu vào")
     parser.add_argument("--device", type=str, default="cuda", help="Thiết bị chạy (cuda/cpu)")
     parser.add_argument("--threshold", type=float, default=0.5, 
-                        help="Ngưỡng quyết định (cắt) cho F1-Score và báo cáo chi tiết. (Mặc định: 0.5)") # <--- THAM SỐ MỚI
+                        help="Ngưỡng quyết định (cắt) cho F1-Score và báo cáo chi tiết. (Mặc định: 0.5)")
 
     return parser.parse_args()
 
@@ -55,17 +55,9 @@ def collate_fn_ignore_none(batch):
 # ==========================================
 # 3. HÀM ĐÁNH GIÁ CHÍNH
 # ==========================================
-def evaluate_model(model, dataloader, device, class_names, threshold):
+def evaluate_model(model, dataloader, device, class_names, threshold, exclude_classes=None):
     """
     Đánh giá mô hình CSRModel trên tập test.
-    Args:
-        model: Mô hình CSRModel đã được load weight.
-        dataloader: DataLoader của tập test.
-        device: Thiết bị (cuda hoặc cpu).
-        class_names: Danh sách tên các lớp bệnh.
-        threshold: Ngưỡng để phân loại nhị phân (mặc định: 0.5).
-    Returns:
-        metrics: Dictionary chứa các chỉ số đánh giá.
     """
     model.eval()
     
@@ -78,58 +70,64 @@ def evaluate_model(model, dataloader, device, class_names, threshold):
         for batch in tqdm(dataloader, desc="Evaluating"):
             if batch is None: continue
             
-            # Unpack data
             images, labels, _, _ = batch 
-            
             images = images.to(device)
             labels = labels.cpu().numpy()
             
-            # Forward qua model CSR
             outputs = model(images)
-            logits = outputs['logits']  # [B, Num_Classes]
-            
-            # Chuyển logits -> Probability
-            probs = torch.sigmoid(logits).cpu().numpy()  # [B, Num_Classes]
+            logits = outputs['logits']
+            probs = torch.sigmoid(logits).cpu().numpy()
             
             y_true.append(labels)
             y_probs.append(probs)
             
-    # Gộp kết quả
     if len(y_true) == 0:
         print("(!) Không có dữ liệu để đánh giá.")
         return {}
 
-    y_true = np.concatenate(y_true, axis=0)  # [Total_Samples, Num_Classes]
-    y_probs = np.concatenate(y_probs, axis=0)  # [Total_Samples, Num_Classes]
+    y_true = np.concatenate(y_true, axis=0)
+    y_probs = np.concatenate(y_probs, axis=0)
+    
+    # --- Lọc bỏ các class không cần đánh giá ---
+    if exclude_classes:
+        keep_indices = [i for i, name in enumerate(class_names) if name not in exclude_classes]
+        eval_class_names = [class_names[i] for i in keep_indices]
+        y_true = y_true[:, keep_indices]
+        y_probs = y_probs[:, keep_indices]
+        
+        print(f"\n-> Đã loại bỏ {len(exclude_classes)} classes: {exclude_classes}")
+        print(f"-> Đánh giá trên {len(eval_class_names)} classes còn lại")
+    else:
+        eval_class_names = class_names
     
     metrics = {}
     
-    # --- A. AUC-ROC (Không phụ thuộc vào ngưỡng) ---
+    # --- A. AUC-ROC ---
     try:
         auc_score = roc_auc_score(y_true, y_probs, average='macro')
         metrics['AUC_Macro'] = auc_score
         
         auc_per_class = roc_auc_score(y_true, y_probs, average=None)
-        # Handle case where auc_per_class might be a scalar float
         if isinstance(auc_per_class, (int, float)):
             auc_per_class = [auc_per_class]
         
-        for idx, cls in enumerate(class_names):
+        for idx, cls in enumerate(eval_class_names):
             if idx < len(auc_per_class):
                 metrics[f'AUC_{cls}'] = auc_per_class[idx]
     except ValueError:
         print("(!) Cảnh báo: Lỗi tính AUC (có thể do thiếu class trong tập test).")
         metrics['AUC_Macro'] = 0.0
 
-    # --- B. F1-Score và Báo cáo chi tiết (Phụ thuộc vào ngưỡng) ---
-    y_pred_binary = (y_probs > threshold).astype(int)  # Áp dụng ngưỡng để phân loại nhị phân
-    metrics['F1_Macro'] = f1_score(y_true, y_pred_binary, average='macro')
+    # --- B. F1-Score ---
+    y_pred_binary = (y_probs > threshold).astype(int)
+    metrics['F1_Macro'] = f1_score(y_true, y_pred_binary, average='macro', zero_division=0)
     
     # --- C. Báo cáo chi tiết ---
     print("\n" + "="*40)
     print(f"KẾT QUẢ ĐÁNH GIÁ (Threshold={threshold})")
+    print(f"Số classes: {len(eval_class_names)}")
     print("="*40)
-    print(classification_report(y_true, y_pred_binary, target_names=class_names, zero_division=0))
+    print(classification_report(y_true, y_pred_binary, target_names=eval_class_names, zero_division=0))
     
     print("-" * 30)
     print(f"AUC Macro: {metrics.get('AUC_Macro', 0):.4f}")
@@ -144,20 +142,20 @@ def evaluate_model(model, dataloader, device, class_names, threshold):
 def main():
     args = get_args()
     
-    # Thiết lập device
+    # Cập nhật CLASS_NAMES chỉ giữ 7 class
+    CLASS_NAMES = [
+        'Aortic enlargement', 'Cardiomegaly', 'Lung Opacity',
+        'Nodule/Mass', 'Pleural effusion', 'Pleural thickening',
+        'Pulmonary fibrosis'
+    ]
+    
+    # Không cần EXCLUDE_CLASSES nữa vì đã loại từ đầu
+    EXCLUDE_CLASSES = []  # Hoặc xóa hoàn toàn
+    
     device = torch.device("cuda" if torch.cuda.is_available() and args.device == "cuda" else "cpu")
     print(f"-> Using device: {device}")
 
-    # Danh sách tên bệnh (VinDr-CXR)
-    CLASS_NAMES = [
-        'Aortic enlargement', 'Atelectasis', 'Calcification', 'Cardiomegaly',
-        'Consolidation', 'ILD', 'Infiltration', 'Lung Opacity',
-        'Nodule/Mass', 'Other lesion', 'Pleural effusion', 'Pleural thickening',
-        'Pneumothorax', 'Pulmonary fibrosis'
-    ]
-    
     # 1. Load Data
-    # ... (phần load data giữ nguyên) ...
     test_dataset = VINDRCXRDataset(
         csv_file=args.test_csv,
         image_dir=args.image_path,
@@ -175,7 +173,6 @@ def main():
     )
     
     # 2. Load Model
-    # ... (phần load model giữ nguyên) ...
     model = CSRModel(
         num_classes=args.num_classes, 
         num_prototypes=args.num_prototypes, 
@@ -196,9 +193,9 @@ def main():
 
     model.to(device)
     
-    # 3. Run Eval
-    # Truyền tham số ngưỡng vào hàm đánh giá
-    evaluate_model(model, test_loader, device, CLASS_NAMES, args.threshold)
+    # 3. Run Eval - Truyền thêm danh sách class cần loại bỏ
+    evaluate_model(model, test_loader, device, CLASS_NAMES, args.threshold, 
+                   exclude_classes=EXCLUDE_CLASSES)
 
 if __name__ == "__main__":
     main()

@@ -8,31 +8,46 @@ from PIL import Image
 
 
 class VINDRCXRDataset(Dataset):
-    def __init__(self, csv_file, image_dir, num_classes, target_size, map_size):
+    def __init__(self, csv_file, image_dir, num_classes, target_size, map_size, exclude_classes=None):
         """
         Khởi tạo Dataset cho file PNG.
+
+        Args:
+            exclude_classes: List các class cần loại bỏ (ví dụ: ['Consolidation', 'ILD', ...])
         """
         # Đọc CSV
         self.data_df = pd.read_csv(csv_file)
         self.image_dir = image_dir
         self.target_size = target_size
         self.map_size = map_size
+        self.exclude_classes = exclude_classes or []
 
         # 1. Chuẩn bị mapping Class ID
         self.image_ids = self.data_df["image_id"].unique().tolist()
         class_mapping_data = self.data_df[["class_name", "class_id"]].drop_duplicates()
 
         self.class_to_id = {}
-        pathology_class_count = 0
+        self.id_to_class = {}
+        new_class_id = 0
+
         for _, row in class_mapping_data.iterrows():
             name = row["class_name"]
             original_id = row["class_id"]
-            # Chỉ lấy 14 bệnh lý (ID 0-13)
-            if name.lower() != "no finding" and 0 <= original_id <= 13:
-                self.class_to_id[name] = int(original_id)
-                pathology_class_count += 1
 
-        self.num_classes = pathology_class_count
+            # Bỏ qua "No finding" và các class trong exclude list
+            if name.lower() == "no finding":
+                continue
+            if name in self.exclude_classes:
+                continue
+            if 0 <= original_id <= 13:
+                self.class_to_id[name] = new_class_id
+                self.id_to_class[new_class_id] = name
+                new_class_id += 1
+
+        # Cập nhật num_classes dựa trên số class thực tế sau khi lọc
+        self.num_classes = len(self.class_to_id)
+        print(f"📊 Dataset initialized with {self.num_classes} classes (excluded: {len(self.exclude_classes)})")
+        print(f"   Classes: {list(self.class_to_id.keys())}")
 
         # 2. Tối ưu hóa việc tra cứu kích thước gốc (Nếu có trong CSV)
         # Tạo dictionary để tra cứu nhanh width/height nếu CSV có cột này
