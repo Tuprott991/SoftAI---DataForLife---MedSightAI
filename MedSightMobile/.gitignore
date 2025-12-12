@@ -3,12 +3,10 @@
 # dependencies
 node_modules/
 
-# ❌ SENSITIVE - DO NOT PUSH
 /services/config/serviceAccountKey.json
 
 # Expo
 .expo/
-.expo-shared/
 dist/
 web-build/
 expo-env.d.ts
@@ -29,7 +27,6 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
-*.log
 
 # macOS
 .DS_Store
@@ -37,50 +34,12 @@ yarn-error.*
 
 # local env files
 .env*.local
-.env
 
 # typescript
 *.tsbuildinfo
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Test/Coverage
-coverage/
-*.lcov
-
-# Temporary
-*.tmp
-*.temp
-tmp/
-temp/
-
 app-example
 
-# generated native folders (uncomment if using expo prebuild)
-# /ios
-# /android
-
-# ========================================
-# ✅ SHOULD PUSH to GitHub:
-# ========================================
-# - app.json (required for build)
-# - eas.json (required for EAS)
-# - google-services.json (required for Firebase)
-# - GoogleService-Info.plist (required for Firebase iOS)
-# - package.json, package-lock.json
-# - tsconfig.json
-# - All source code in /app, /components, /screens, etc.
-
-# ========================================
-# ❌ NEVER PUSH (already ignored above):
-# ========================================
-# - serviceAccountKey.json (Firebase Admin SDK private key)
-# - .env files (API keys, secrets)
-# - *.key, *.p12, *.mobileprovision (signing certificates)
-# - node_modules/
-
+# generated native folders
+/ios
+/android

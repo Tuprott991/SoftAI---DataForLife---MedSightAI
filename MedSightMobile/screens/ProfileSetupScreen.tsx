@@ -12,7 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function ProfileSetupScreen() {
   const router = useRouter();
-  const { user, updateUserProfile, error, setError } = useAuth();
+  const { user, saveUserProfile, error, setError } = useAuth();
   
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
@@ -52,11 +52,7 @@ export default function ProfileSetupScreen() {
       setIsSubmitting(true);
       console.log('ProfileSetupScreen: Saving profile for user:', user.uid);
       
-      await updateUserProfile({
-        name,
-        age: Number(age),
-        address,
-      });
+      await saveUserProfile(user.uid, name, Number(age), address);
       
       console.log('ProfileSetupScreen: Profile saved successfully, navigating to history');
       setIsSubmitting(false);

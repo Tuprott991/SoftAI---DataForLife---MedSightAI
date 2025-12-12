@@ -1,10 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Alert } from 'react-native';
 import { auth, db, app } from '@/services/firebase';
 import { signOut, onAuthStateChanged, PhoneAuthProvider, signInWithCredential } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection } from 'firebase/firestore';
-import { getVietnameseAuthError, normalizePhoneNumber } from '@/utils/otp-utils';
-import { setupNotifications } from '@/services/notificationService';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 // Mock storage for users (simulates Firestore for offline/testing)
 const mockUserDatabase: Record<string, any> = {};
@@ -113,14 +110,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           
           // Check if user exists in Firestore
           await checkUserExists(currentUser.uid);
-          
-          // Setup FCM notifications
-          try {
-            console.log('🔔 Setting up FCM for user:', currentUser.uid);
-            await setupNotifications(currentUser.uid);
-          } catch (error) {
-            console.error('❌ Error setting up FCM:', error);
-          }
         } else {
           setUser(null);
           setUserProfile(null);
@@ -146,113 +135,63 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const sendOTP = async (phone: string, appVerifier: any): Promise<string> => {
     try {
-      console.log('🚀 Auth: sendOTP called with phone:', phone);
+      console.log('Auth: sendOTP called with phone:', phone);
       
       setError(null);
       setIsLoading(true);
       
-      // Format phone number using utility function
-      const formattedPhone = normalizePhoneNumber(phone);
+      // Format phone number: remove leading 0, add +84
+      let formattedPhone = phone.trim();
+      if (formattedPhone.startsWith('0')) {
+        formattedPhone = '+84' + formattedPhone.slice(1);
+      } else if (!formattedPhone.startsWith('+')) {
+        formattedPhone = '+' + formattedPhone;
+      }
       
-      console.log('📱 Auth: Formatted phone:', formattedPhone);
+      console.log('Auth: Formatted phone:', formattedPhone);
       setPhoneNumber(formattedPhone);
       
-      // Validate phone format
-      if (!formattedPhone.startsWith('+')) {
-        throw new Error('Số điện thoại phải có mã quốc gia (vd: +84)');
-      }
-      
-      // Try to send real SMS via Firebase
-      try {
-        const phoneProvider = new PhoneAuthProvider(auth);
-        console.log('📤 Auth: Attempting to send SMS via Firebase...');
-        console.log('🔑 Auth: Phone:', formattedPhone);
-        console.log('🔐 Auth: AppVerifier:', appVerifier ? 'Provided' : 'NULL (using Play Integrity)');
+      // If ReCAPTCHA not available, use mock OTP for development
+      if (!appVerifier) {
+        console.warn('⚠️  ReCAPTCHA not available - using mock OTP verification for development');
+        console.log('Auth: Test phone numbers: +84 945 876 079, +1 650-555-1234');
+        console.log('Auth: Test OTP: 123456');
         
-        // On Android, appVerifier can be null if Play Integrity is configured
-        // Firebase will use Play Integrity API automatically
-        const verificationId = await phoneProvider.verifyPhoneNumber(
-          formattedPhone,
-          appVerifier // null = use Play Integrity on Android
-        );
-        
-        console.log('✅ Auth: SMS sent successfully!');
-        console.log('🆔 Auth: Verification ID:', verificationId);
-        
-        setVerificationId(verificationId);
+        const mockVerificationId = 'mock-verification-' + Date.now();
+        setVerificationId(mockVerificationId);
         setIsLoading(false);
         
-        return verificationId;
-        
-      } catch (firebaseErr: any) {
-        console.error('❌ Auth: Firebase SMS error:', firebaseErr);
-        console.error('📋 Auth: Error code:', firebaseErr.code);
-        console.error('📝 Auth: Error message:', firebaseErr.message);
-        console.error('🔍 Auth: Full error:', JSON.stringify(firebaseErr, null, 2));
-        
-        // Show Firebase error in Alert for debugging
-        Alert.alert(
-          '🐛 Firebase Error (Send OTP)',
-          `Error Code: ${firebaseErr.code || 'N/A'}\n\n` +
-          `Message: ${firebaseErr.message || 'Unknown'}\n\n` +
-          `Phone: ${formattedPhone}\n\n` +
-          `Falling back to mock mode...`,
-          [{ text: 'OK' }]
-        );
-        
-        // Check specific error codes
-        if (firebaseErr.code === 'auth/invalid-app-credential' || 
-            firebaseErr.code === 'auth/missing-client-identifier' ||
-            firebaseErr.code === 'auth/app-not-authorized') {
-          console.warn('⚠️  Firebase configuration issue detected');
-          console.warn('💡 Possible causes:');
-          console.warn('   1. SHA-256 certificate not added to Firebase Console');
-          console.warn('   2. google-services.json outdated');
-          console.warn('   3. App not authorized in Firebase Console');
-          console.warn('   4. Running in development mode without proper config');
-          console.warn('');
-          console.warn('🔧 Using mock OTP for development...');
-          
-          // Use mock mode for development
-          const mockVerificationId = 'mock-verification-' + Date.now();
-          setVerificationId(mockVerificationId);
-          setIsLoading(false);
-          
-          console.log('✅ Mock OTP mode activated');
-          console.log('🔑 Use OTP: 123456 to login');
-          
-          return mockVerificationId;
-        }
-        
-        // For test numbers, use mock mode
-        const testNumbers = ['+84945876079', '+16505551234'];
-        const cleanedPhone = formattedPhone.replace(/\s/g, '');
-        
-        if (testNumbers.some(num => cleanedPhone.includes(num.replace(/\s/g, '')))) {
-          console.warn('🧪 Test phone number detected, using mock OTP');
-          const mockVerificationId = 'mock-verification-' + Date.now();
-          setVerificationId(mockVerificationId);
-          setIsLoading(false);
-          return mockVerificationId;
-        }
-        
-        // For real numbers with errors, throw
-        throw firebaseErr;
+        return mockVerificationId;
       }
+      
+      // Call Firebase to send OTP via SMS
+      const phoneProvider = new PhoneAuthProvider(auth);
+      console.log('Auth: Sending OTP with Firebase PhoneAuthProvider...');
+      
+      const verificationId = await phoneProvider.verifyPhoneNumber(
+        formattedPhone,
+        appVerifier
+      );
+      
+      console.log('Auth: OTP sent successfully! Verification ID:', verificationId);
+      setVerificationId(verificationId);
+      setIsLoading(false);
+      
+      return verificationId;
       
     } catch (err: any) {
-      console.error('❌ Auth: sendOTP fatal error:', err);
+      console.error('Auth: sendOTP error:', err);
+      console.error('Auth: Error code:', err.code);
+      console.error('Auth: Error message:', err.message);
       
-      // Use Vietnamese error messages
-      let errorMessage = getVietnameseAuthError(err.code);
-      
-      // Add helpful hints for common issues
+      // Provide user-friendly error messages
+      let errorMessage = err.message || 'Failed to send OTP';
       if (err.code === 'auth/invalid-phone-number') {
-        errorMessage += '\n\nVui lòng nhập đầy đủ mã quốc gia (vd: +84 cho Việt Nam)';
-      }
-      
-      if (!errorMessage || errorMessage.includes('Đã có lỗi')) {
-        errorMessage = err.message || 'Không thể gửi mã OTP';
+        errorMessage = 'Invalid phone number format';
+      } else if (err.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many requests. Please try again later.';
+      } else if (err.code === 'auth/operation-not-supported-in-this-environment') {
+        errorMessage = 'Phone authentication not supported in this environment';
       }
       
       setError(errorMessage);
@@ -263,10 +202,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const verifyOTP = async (otp: string): Promise<any> => {
     try {
-      console.log('🔐 Auth: verifyOTP called');
-      console.log('📝 Auth: OTP:', otp);
-      console.log('📝 Auth: OTP length:', otp.length);
-      console.log('🆔 Auth: Verification ID:', verificationId);
+      console.log('Auth: verifyOTP called with OTP length:', otp.length);
       setError(null);
       setIsLoading(true);
 
@@ -307,17 +243,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       // Real Firebase verification
-      console.log('🔥 Auth: Starting Firebase credential verification...');
-      console.log('🆔 Auth: Using verification ID:', verificationId);
-      console.log('🔑 Auth: Using OTP:', otp);
-      
       const credential = PhoneAuthProvider.credential(verificationId, otp);
-      console.log('✅ Auth: Credential created successfully');
-      
-      console.log('🔐 Auth: Signing in with credential...');
       const userCredential = await signInWithCredential(auth, credential);
-      console.log('✅ Auth: User signed in successfully:', userCredential.user.uid);
-      console.log('📱 Auth: Phone number:', userCredential.user.phoneNumber);
+      console.log('Auth: User signed in successfully:', userCredential.user.uid);
       
       // Create auth user object
       const authUser: AuthUser = {
@@ -335,23 +263,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsLoading(false);
       return userCredential.user;
     } catch (err: any) {
-      console.error('❌ Auth: verifyOTP error:', err);
-      console.error('📋 Auth: Error code:', err.code);
-      console.error('📝 Auth: Error message:', err.message);
-      console.error('🔍 Auth: Full error:', JSON.stringify(err, null, 2));
+      console.error('Auth: verifyOTP error:', err);
+      console.error('Auth: Error code:', err.code);
       
-      // Show detailed error in Alert for debugging
-      Alert.alert(
-        '🐛 Debug Info',
-        `Error Code: ${err.code || 'N/A'}\n\n` +
-        `Message: ${err.message || 'Unknown error'}\n\n` +
-        `Verification ID: ${verificationId}\n\n` +
-        `OTP Length: ${otp.length}`,
-        [{ text: 'OK' }]
-      );
-      
-      // Use Vietnamese error messages
-      const errorMessage = getVietnameseAuthError(err.code) || err.message || 'Mã OTP không hợp lệ';
+      // Provide user-friendly error messages
+      let errorMessage = err.message || 'Invalid OTP';
+      if (err.code === 'auth/invalid-verification-code') {
+        errorMessage = 'Invalid verification code. Please try again.';
+      } else if (err.code === 'auth/code-expired') {
+        errorMessage = 'Verification code has expired. Please request a new one.';
+      }
       
       setError(errorMessage);
       setIsLoading(false);

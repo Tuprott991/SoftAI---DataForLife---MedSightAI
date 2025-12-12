@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-CHECKPOINT_PATH = "D:\\github\\Nammoadidaphat\\SoftAI---DataForLife---MedSightAI\\csr_phase1.pth"  # Sửa lại đường dẫn checkpoint
+CHECKPOINT_PATH = "/home/nghia-duong/SoftAI---DataForLife---MedSightAI_2/csr_phase1.pth"  # Sửa lại đường dẫn checkpoint
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 CLASS_NAMES = [

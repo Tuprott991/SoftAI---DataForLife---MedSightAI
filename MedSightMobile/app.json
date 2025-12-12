@@ -9,15 +9,9 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.medsightmobile.app",
-      "googleServicesFile": "./GoogleService-Info.plist",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
+      "supportsTablet": true
     },
     "android": {
-      "package": "com.medsightmobile.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -25,27 +19,15 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "googleServicesFile": "./google-services.json"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      [
-        "@react-native-firebase/app",
-        {
-          "android": {
-            "googleServicesFile": "./google-services.json"
-          },
-          "ios": {
-            "googleServicesFile": "./GoogleService-Info.plist"
-          }
-        }
-      ],
+      "@react-native-firebase/app", 
       "@react-native-firebase/auth",
-      "@react-native-firebase/messaging",
       "expo-router",
       [
         "expo-splash-screen",
@@ -63,16 +45,6 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    },
-    "updates": {
-      "url": "https://u.expo.dev/91f747ae-5092-4b35-8e9b-81c0ecf78a2f"
-    },
-    "runtimeVersion": "1.0.0",
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "91f747ae-5092-4b35-8e9b-81c0ecf78a2f"
-      }
     }
   }
 }

@@ -6,7 +6,6 @@ import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { UpdateService } from '@/utils/updateService';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -18,20 +17,6 @@ function RootLayoutNav() {
   const router = useRouter();
 
   console.log('RootLayoutNav: isLoading =', isLoading, ', isSignedIn =', isSignedIn, ', isNewUser =', isNewUser, ', user =', user?.uid);
-
-  // Check for OTA updates on app start
-  useEffect(() => {
-    const checkUpdates = async () => {
-      try {
-        console.log('🔄 Checking for OTA updates...');
-        await UpdateService.checkForUpdates(false);
-      } catch (error) {
-        console.error('Update check error:', error);
-      }
-    };
-    
-    checkUpdates();
-  }, []); // Run once on mount
 
   // Use effect to handle navigation when auth state changes
   useEffect(() => {
@@ -77,15 +62,6 @@ function RootLayoutNav() {
         <Stack.Screen
           name="ResultDetail"
           options={{ presentation: 'card' }}
-        />
-        <Stack.Screen
-          name="about"
-          options={{ 
-            presentation: 'card',
-            headerShown: true,
-            headerTitle: 'Về ứng dụng',
-            headerBackTitle: 'Quay lại'
-          }}
         />
       </Stack>
       <StatusBar style="auto" />

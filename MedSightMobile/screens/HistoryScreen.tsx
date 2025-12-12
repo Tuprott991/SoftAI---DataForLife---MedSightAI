@@ -279,7 +279,7 @@ const generateMockHistory = (): HistoryCase[] => {
         {
           id: `CASE_002_CARDIOMEGALY_${timestamp}`,
           type: 'asset',
-          source: require('@/assets/images/Cardiomegaly.jpg'),
+          source: require('@/assets/images/Cardiomegaly.png'),
           label: 'Gợi ý Cardiomegaly',
         },
         {
