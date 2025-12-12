@@ -38,7 +38,7 @@ interface AuthContextType {
   verificationId: string | null;
   setVerificationId: (id: string | null) => void;
   sendOTP: (phoneNumber: string, appVerifier: any) => Promise<string>;
-  verifyOTP: (otp: string) => Promise<any>;
+  verifyOTP: (otp: string, verificationIdOverride?: string) => Promise<any>;
   signOutUser: () => Promise<void>;
   updateUserProfile: (profile: Partial<UserProfile>) => Promise<void>;
   error: string | null;
@@ -200,18 +200,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const verifyOTP = async (otp: string): Promise<any> => {
+  const verifyOTP = async (otp: string, verificationIdOverride?: string): Promise<any> => {
     try {
       console.log('Auth: verifyOTP called with OTP length:', otp.length);
       setError(null);
       setIsLoading(true);
 
-      if (!verificationId) {
+      // Use the override if provided, otherwise fall back to state
+      const currentVerificationId = verificationIdOverride || verificationId;
+
+      if (!currentVerificationId) {
         throw new Error('Verification ID not found. Please send OTP first.');
       }
 
       // Check if this is a mock verification ID (development mode)
-      if (verificationId.startsWith('mock-')) {
+      if (currentVerificationId.startsWith('mock-')) {
         console.warn('⚠️  Using mock OTP verification');
         
         // Accept test OTP
@@ -243,7 +246,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       // Real Firebase verification
-      const credential = PhoneAuthProvider.credential(verificationId, otp);
+      const credential = PhoneAuthProvider.credential(currentVerificationId, otp);
       const userCredential = await signInWithCredential(auth, credential);
       console.log('Auth: User signed in successfully:', userCredential.user.uid);
       
